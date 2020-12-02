@@ -52,20 +52,6 @@ fun processLineRule2(start1based: Int, end1based: Int, chr: Char, pwd: String) {
     }
 }
 
-/* 
-fun parseLine(line: String): List<String> {
-    var (spec, pwd) = line.split(":");
-    pwd = pwd.trim();
-
-    var (range, chr) = spec.split(" ");
-    range = range.trim(); chr = chr.trim();
-
-    var (start, end) = range.split("-");
-
-    return listOf(start, end, chr, pwd);
-}
-*/
-
 val lineSpec = """(\d+)\-(\d+) (.)\: (.*)""".toRegex();
 
 fun parseLine(line: String): List<String> {
