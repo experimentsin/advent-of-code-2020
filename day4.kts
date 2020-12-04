@@ -48,125 +48,99 @@ fun compilePassports(texts: List<String>): List<Passport> {
     return texts.map(::compilePassport);
 }
 
-val normalRequiredFields = listOf(
-    "byr",
-    "iyr",
-    "eyr",
-    "hgt",
-    "hcl",
-    "ecl",
-    "pid",
-    "cid"
-);
-
-val hackedRequiredFields = normalRequiredFields.toMutableList();
-hackedRequiredFields.removeLast();
+val requiredFieldsPart1 = listOf("byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid");
 
 fun isValidPassportPart1(pp: Passport): Boolean {
-    println("isValidPassport: $pp");
-    for (field in hackedRequiredFields) {
+    // println("isValidPassport: $pp");
+    for (field in requiredFieldsPart1) {
         if (pp.fields[field] == null) {
-            println("Missing $field");
+            // println("Missing $field");
             return false;
         }
     }
     return true;
 }
 
-data class FieldSpec(val name: String, val validate: (String) -> Boolean);
+/*
+    This pattern could be nicer but many formulations triggers internal errors in 
+    the Kotlin compiler similar to https://youtrack.jetbrains.com/issue/KT-24457 
 
-fun inInclusiveRange(trial: Int, low: Int, high: Int): Boolean = low <= trial && trial <= high;
+ */
 
-val byrSpec = FieldSpec("byr", fun (value: String): Boolean {
-    val pattern = """(\d\d\d\d)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
+abstract class FieldSpec(val name: String, val pattern: String) {
 
-    val (year) = match.destructured;
-    return inInclusiveRange(year.toInt(), 1920, 2002);
-} );
+    val regex = pattern.toRegex();
 
-val iyrSpec = FieldSpec("iyr", fun (value: String): Boolean {
-    val pattern = """(\d\d\d\d)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
+    fun validate(input: String): Boolean {
+        val match = regex.matchEntire(input);
+        if (match === null) return false;
 
-    val (year) = match.destructured;
-    return inInclusiveRange(year.toInt(), 2010, 2020);
-} );
-
-val eyrSpec = FieldSpec("eyr", fun (value: String): Boolean {
-    val pattern = """(\d\d\d\d)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
-
-    val (year) = match.destructured;
-    return inInclusiveRange(year.toInt(), 2020, 2030);
-} );
-
-val hgtSpec = FieldSpec("hgt", fun (value: String): Boolean {
-    val pattern = """(\d+)(.+)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
-
-    val (height, unit) = match.destructured;
-    val iheight = height.toInt();
-    when (unit) {
-        "cm" -> return inInclusiveRange(iheight, 150, 193)
-        "in" -> return inInclusiveRange(iheight, 59, 76)
-        else -> return false;
+        val result = validateMatch(match.destructured);
+        return result;
     }
-} );
 
-val hclSpec = FieldSpec("hcl", fun (value: String): Boolean {
-    val pattern = """#([a-f0-9]*)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
+    fun inRange(trial: Int, low: Int, high: Int): Boolean = low <= trial && trial <= high;
 
-    val (rgb) = match.destructured;
-    return rgb.length == 6;    
-} );
-
-val eclSpec = FieldSpec("ecl", fun (value: String): Boolean {
-    val pattern = """(.*)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
-
-    val (col) = match.destructured;
-    when (col) {
-        "amb", "blu", "brn", "gry", "grn", "hzl", "oth" -> return true
-        else -> return false;
-    }
-} );
-
-val pidSpec = FieldSpec("pid", fun (value: String): Boolean {
-    val pattern = """(\d\d\d\d\d\d\d\d\d)""".toRegex();
-    val match = pattern.matchEntire(value);
-    if (match === null) return false;
-
-    return true;
-} );
-
-val cidSpec = FieldSpec("cid", fun (_: String): Boolean {
-    return true;
-} );
-
-val requiredFieldsPart2 = listOf(byrSpec, iyrSpec, eyrSpec, hgtSpec, hclSpec, eclSpec, pidSpec);
-
-fun isValidPassportPart2(pp: Passport): Boolean {
-    println("isValidPassportPart2: $pp");
-    for (field in requiredFieldsPart2) {
-        if (pp.fields[field.name] == null) {
-            println("Missing $field");
-            return false;
-        }
-        if (!field.validate(pp.fields[field.name]!!)) {
-            println("Validation failed $field");
-            return false;          
-        }
-    }
-    return true;
+    abstract fun validateMatch(match: MatchResult.Destructured): Boolean;
 }
+
+object ByrSpec : FieldSpec("byr", """(\d\d\d\d)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (year) = match;
+        return inRange(year.toInt(), 1920, 2002);
+     }
+}
+
+object IyrSpec : FieldSpec("iyr", """(\d\d\d\d)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (year) = match;
+        return inRange(year.toInt(), 2010, 2020);
+     }
+}
+
+object EyrSpec : FieldSpec("eyr", """(\d\d\d\d)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (year) = match;
+        return inRange(year.toInt(), 2020, 2030);
+     }
+}
+
+object HgtSpec : FieldSpec("hgt", """(\d+)(.+)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (height, unit) = match;
+        val iheight = height.toInt();
+        when (unit) {
+            "cm" -> return inRange(iheight, 150, 193)
+            "in" -> return inRange(iheight, 59, 76)
+            else -> return false;
+        }
+    }
+}
+
+object HclSpec : FieldSpec("hcl", """#([a-f0-9]*)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (rgb) = match;
+        return rgb.length == 6;    
+    }
+}
+
+object EclSpec : FieldSpec("ecl", """(.*)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        val (col) = match;
+        when (col) {
+            "amb", "blu", "brn", "gry", "grn", "hzl", "oth" -> return true
+            else -> return false
+        }
+    }
+}
+
+object PidSpec : FieldSpec("pid", """(\d\d\d\d\d\d\d\d\d)""") {
+    override fun validateMatch(match: MatchResult.Destructured): Boolean {
+        return true;
+    }
+}
+
+val requiredFieldsPart2 = listOf(ByrSpec, IyrSpec, EyrSpec, HgtSpec, HclSpec, EclSpec, PidSpec)
 
 fun testSpecs() {
 
@@ -183,38 +157,54 @@ fun testSpecs() {
         input.forEach({ checkInvalid(spec, it)})
     }
 
-    checkAllValid(byrSpec, "1920", "2002");
-    checkAllInvalid(byrSpec, "1919", "2003", "ABCD", "200", "20000");
+    checkAllValid(ByrSpec, "1920", "2002");
+    checkAllInvalid(ByrSpec, "1919", "2003", "ABCD", "200", "20000");
 
-    checkAllValid(iyrSpec, "2010", "2020");
-    checkAllInvalid(iyrSpec, "2009", "2021", "ABCD", "200", "20000");
+    checkAllValid(IyrSpec, "2010", "2020");
+    checkAllInvalid(IyrSpec, "2009", "2021", "ABCD", "200", "20000");
 
-    checkAllValid(eyrSpec, "2020", "2030");
-    checkAllInvalid(eyrSpec, "2019", "2031", "ABCD", "200", "20000");
+    checkAllValid(EyrSpec, "2020", "2030");
+    checkAllInvalid(EyrSpec, "2019", "2031", "ABCD", "200", "20000");
 
-    checkAllValid(hgtSpec, "150cm", "193cm", "59in", "76in");
-    checkAllInvalid(hgtSpec, "149cm", "194cm", "58in", "77in", "100c", "100cmx", "100i", "100inx", "100ab");
+    checkAllValid(HgtSpec, "150cm", "193cm", "59in", "76in");
+    checkAllInvalid(HgtSpec, "149cm", "194cm", "58in", "77in", "100c", "100cmx", "100i", "100inx", "100ab");
 
-    checkAllValid(hclSpec, "#1a2b3c", "#a1b1c1", "#123456", "#789012", "#abcdef");
-    checkAllInvalid(hclSpec, "#1a", "#1a2b", "#1a2b3c4e", "#1x2y3z", "1a2b3c");
+    checkAllValid(HclSpec, "#1a2b3c", "#a1b1c1", "#123456", "#789012", "#abcdef");
+    checkAllInvalid(HclSpec, "#1a", "#1a2b", "#1a2b3c4e", "#1x2y3z", "1a2b3c");
 
-    checkAllValid(eclSpec, "amb", "blu", "brn", "gry", "grn", "hzl", "oth");
-    checkAllInvalid(eclSpec, "", "am", "ambblue", "ambo", " amb ");
+    checkAllValid(EclSpec, "amb", "blu", "brn", "gry", "grn", "hzl", "oth");
+    checkAllInvalid(EclSpec, "", "am", "ambblue", "ambo", " amb ");
 
-    checkAllValid(pidSpec, "123456789", "012345678");
-    checkAllInvalid(pidSpec, "12345678", "1234567890", "abcdefghi");
+    checkAllValid(PidSpec, "123456789", "012345678");
+    checkAllInvalid(PidSpec, "12345678", "1234567890", "abcdefghi");
 
+}
+
+fun isValidPassportPart2(pp: Passport): Boolean {
+    for (field in requiredFieldsPart2) {
+        if (pp.fields[field.name] == null) {
+            // println("Missing $field");
+            return false;
+        }
+        if (!field.validate(pp.fields[field.name]!!)) {
+            // println("Validation failed $field");
+            return false;          
+        }
+        // println("Validation succeeded $field");
+    }
+    return true;
 }
 
 // Answer: 226
 fun processPart1() {
-    println("Passports $passports");
+    // println("Passports $passports");
     val valid = passports.count({ isValidPassportPart1(it) });
     println("Valid $valid");
 }
 
+// Answer: 160
 fun processPart2() {
-    println("Passports $passports");
+    // println("Passports $passports");
     val valid = passports.count({ isValidPassportPart2(it) });
     println("Valid $valid");
 }
