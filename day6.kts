@@ -1,12 +1,12 @@
 fun parseInput(): List<List<String>> {
-    val forms = mutableListOf<List<String>>()
+    val groups = mutableListOf<List<String>>()
 
-    var formLines = mutableListOf<String>()
+    var groupLines = mutableListOf<String>()
 
-    fun commitForm() {
-        if (!formLines.isEmpty()) {
-            forms.add(formLines)
-            formLines = mutableListOf<String>()
+    fun commitGroup() {
+        if (!groupLines.isEmpty()) {
+            groups.add(groupLines)
+            groupLines = mutableListOf<String>()
         }
     }
 
@@ -15,42 +15,44 @@ fun parseInput(): List<List<String>> {
 
         // End of file
         if (line == null) {
-            commitForm()
-            return forms
+            commitGroup()
+            return groups
         }
 
         val trimmed = line.trim()
 
         // Blank line
         if (trimmed.isEmpty()) {
-            commitForm()
+            commitGroup()
             continue
         }
 
         // Line with content
-        formLines.add(line.trim())
+        groupLines.add(line.trim())
     }
 }
 
+// Notes: Switched over to using Emacs with Kotlin mode at this point
+    
 // Answer: 6297 @ 10 mins
 fun processPart1() {
     var total = 0
     for (group in data) {
-	val yesSet = mutableSetOf<Char>()
+	var yesSet = mutableSetOf<Char>()
 	for (person in group) {
-	    for (c in person) {
-		yesSet.add(c)
-	    }
+	    yesSet.addAll(person.toList())
 	}
 	// println("$group = $yesSet = ${yesSet.size}");
 	total += yesSet.size
     }
+    
     println("Total $total")
 }
 
 // Answer: 3158 @ 19 mins
 fun processPart2() {
     var total = 0
+
     for (group in data) {
 	var allSet: Set<Char>? = null
 	for (person in group) {
@@ -59,11 +61,15 @@ fun processPart2() {
 		continue
 	    }
 
-	    allSet = allSet.intersect(person.toHashSet())
+	    allSet = allSet intersect person.toHashSet()
 	}
 	// println("$group = $allSet = ${allSet!!.size}");
 	total += allSet!!.size
     }
+
+    // Or if you want to sound precocious 
+    // val total = data.sumBy({ it.map({ it.toSet() }).reduce({ s1, s2 -> s1 intersect s2 }).size })
+
     println("Total $total")
 }
 
