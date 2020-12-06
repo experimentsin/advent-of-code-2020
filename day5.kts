@@ -46,7 +46,7 @@ fun processPart1() {
 // Answer: 610 @ 30 mins total
 fun processPart2() {
     val ids = data.map(::processCardPart1).toMutableList()
-    ids.sort();
+    ids.sort()
     val range = ids.first()..ids.last()
     val diff = range.subtract(ids)
     println("diff $diff")
