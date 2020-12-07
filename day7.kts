@@ -10,18 +10,25 @@ fun parseLines(): List<String> {
     }
 }
 
+val REGEX_CACHE = hashMapOf<String, Regex>()
+fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
+    var regex = REGEX_CACHE[pattern]
+    if (regex === null) {
+	regex = Regex(pattern)
+	REGEX_CACHE[pattern] = regex
+    }
+
+    val matchResult = regex.matchEntire(input)
+    if (matchResult === null) return null
+    return matchResult.destructured
+}
+
 data class Colour(val adjective: String, val hue: String)
 data class NColour(val n: Int, val colour: Colour)
 data class Rule(val colour: Colour, val canContain: MutableList<NColour> = mutableListOf<NColour>())
 
 fun parseLine2(line: String): Rule {
-    val case1 = """([a-z]+) ([a-z]+) bags contain (.*)\.""".toRegex()
-    val match1 = case1.matchEntire(line)
-    if (match1 === null) {
-	println("No match for $line")
-	throw Error("Rats")
-    }
-    val (adj, col, spec) = match1.destructured
+    val (adj, col, spec) = destructureWithRegex(line, """([a-z]+) ([a-z]+) bags contain (.*)\.""") ?: throw Error("No match for $line")
     // println("$adj $col -- $spec")
 
     val rule = Rule(Colour(adj, col))
@@ -31,19 +38,11 @@ fun parseLine2(line: String): Rule {
 	return rule
     }
 
-    
-
     val more = spec.split(",")
-    val moreCase = """(\d+) ([a-z]+) ([a-z]+) bags?""".toRegex()
     for (colspec in more) {
-	val trimmed = colspec.trim()
-	val moreMatch = moreCase.matchEntire(trimmed)
-	if (moreMatch === null) {
-	    println("No match for $colspec")
-	    throw Error("Rats")
-	}
-	val (nmore, adjmore, colmore) = moreMatch.destructured
+	val (nmore, adjmore, colmore) = destructureWithRegex(colspec.trim(), """(\d+) ([a-z]+) ([a-z]+) bags?""") ?: throw Error("No match for $colspec")
 	// println("$nmore $adjmore $colmore")
+
 	rule.canContain.add(NColour(nmore.toInt(), Colour(adjmore, colmore)))
     }
 
@@ -57,7 +56,9 @@ fun countContainers(rules: List<Rule>, target: Colour): Int {
 	if (c in seen) return
 	seen.add(c)
 	
-	val possibleContainers = rules.filter({ c in it.canContain.map({ it.colour }) }).map({ it.colour })
+	val possibleContainers
+	    = rules.filter { rule -> c in rule.canContain.map { it.colour } }
+                   .map { rule -> rule.colour }
 
 	possibleContainers.forEach(::search)
     }
@@ -75,12 +76,11 @@ fun processPart1() {
     println("Result: $result")
 }
 
-
 fun countContained(rules: List<Rule>, target: Colour): Int {
 
     fun search(c: Colour): Int {
 	var total = 1
-	val crule = rules.filter({ c == it.colour })[0]
+	val crule = rules.find({ c == it.colour })!!
 	for (contained in crule.canContain) {
 	    val containedn = contained.n
 	    val allContained = search(contained.colour)
