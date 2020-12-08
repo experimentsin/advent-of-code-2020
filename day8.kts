@@ -25,77 +25,78 @@ fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructur
 
 /// Solution
 
-data class Op(val name: String, val arg: Int)
+enum class OpCode { NOP, ACC, JMP }
+data class Op(val code: OpCode, val arg: Int)
 
-data class State(var ops: List<Op>, var pc: Int = 0, var acc: Int = 0)
+fun parseOp(line: String): Op {
+    val (name, arg) = destructureWithRegex(line, """([a-z]+) ([+\-]\d+)""") ?: throw Error("Failed to parse $line")
+    return Op(OpCode.valueOf(name.toUpperCase()), arg.toInt())
+}
+
+data class Context(var ops: List<Op>, var pc: Int = 0, var acc: Int = 0)
 
 enum class ExitReason { NORMAL, ABNORMAL }
 
-fun execute(s: State): ExitReason {
-
-    val opCounts = ops.map({ 0 }).toMutableList()
+fun Context.execute(): ExitReason {
+    val opCounts = ops.map { 0 }.toMutableList()
 
     while (true) {
-	if (s.pc >= s.ops.size) return ExitReason.NORMAL
+	if (pc >= ops.size) return ExitReason.NORMAL
 
-	if (opCounts[s.pc]++ > 0) return ExitReason.ABNORMAL
+	if (opCounts[pc]++ > 0) return ExitReason.ABNORMAL
 	
-	val op = s.ops[s.pc]
-	when (op.name) {
-	    "nop" -> {
-		++s.pc
+	val op = ops[pc]
+	when (op.code) {
+	    OpCode.NOP -> {
+		++pc
 	    }
 
-	    "acc" -> {
-		s.acc += op.arg
-		++s.pc
+	    OpCode.ACC -> {
+		acc += op.arg
+		++pc
 	    }
-
-	    "jmp" -> {
-		s.pc += op.arg
+	    OpCode.JMP -> {
+		pc += op.arg
 	    }
 	}
     }
 }
 
-fun parseOp(line: String): Op {
-    val (name, arg) = destructureWithRegex(line, """([a-z]+) ([+\-]\d+)""") ?: throw Error("Failed to parse $line")
-    return Op(name, arg.toInt())
-}
-
 // Answer - 1451 @ 15mins
 fun processPart1() {
-    // println("Ops: $ops")
-    val s = State(ops)
-    execute(s)
+    val ops = inputOps
 
-    println("Part 1 answer: ${s.acc}")
+    val c = Context(ops)
+    c.execute()
+
+    println("Part 1 answer: ${c.acc}")
 }
 
 // Answer - 1160 @ 26mins
 fun processPart2() {
-    for (i in ops.indices) {
-	val op = ops[i]
+    val ops = inputOps
 
-	val replacement = when (op.name) {
-	    "nop" -> Op("jmp", ops[i].arg)
-	    "jmp" -> Op("nop", ops[i].arg)
-	    else -> continue
+    for ((i, op) in ops.withIndex()) {
+
+	val replacement = when (op.code) {
+	    OpCode.NOP -> Op(OpCode.JMP, op.arg)
+	    OpCode.JMP -> Op(OpCode.NOP, op.arg)
+	    else       -> continue
 	}
 	val patchable = ops.toMutableList()
 	patchable[i] = replacement
 
-	val s = State(patchable)
-	val exit = execute(s)
+	val c = Context(patchable)
+	val exit = c.execute()
+
 	if (exit == ExitReason.NORMAL) {
-	    // println("Patched $i exit")
-	    println("Part 2 answer: ${s.acc}")
+	    println("Part 2 answer: ${c.acc}")
 	    break
 	}
     }
 }
 
-val data = parseLines()
-val ops = data.map(::parseOp)
+val inputData = parseLines()
+val inputOps = inputData.map(::parseOp)
 processPart1()
 processPart2()
