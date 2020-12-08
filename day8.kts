@@ -33,9 +33,9 @@ fun parseOp(line: String): Op {
     return Op(OpCode.valueOf(name.toUpperCase()), arg.toInt())
 }
 
-data class Context(var ops: List<Op>, var pc: Int = 0, var acc: Int = 0)
+data class Context(val ops: List<Op>, var pc: Int = 0, var acc: Int = 0)
 
-enum class ExitReason { NORMAL, ABNORMAL }
+enum class ExitReason { NORMAL, LOOPING }
 
 fun Context.execute(): ExitReason {
     val opCounts = ops.map { 0 }.toMutableList()
@@ -43,10 +43,11 @@ fun Context.execute(): ExitReason {
     while (true) {
 	if (pc >= ops.size) return ExitReason.NORMAL
 
-	if (opCounts[pc]++ > 0) return ExitReason.ABNORMAL
+	if (opCounts[pc]++ > 0) return ExitReason.LOOPING
 	
 	val op = ops[pc]
 	when (op.code) {
+	    
 	    OpCode.NOP -> {
 		++pc
 	    }
@@ -58,6 +59,7 @@ fun Context.execute(): ExitReason {
 	    OpCode.JMP -> {
 		pc += op.arg
 	    }
+	    
 	}
     }
 }
