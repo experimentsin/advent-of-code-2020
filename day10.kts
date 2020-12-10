@@ -12,23 +12,10 @@ fun parseLines(): List<String> {
 
 /// Solution
 
-fun <T>extendList(l: List<T>, e: T): List<T> {
-    val copy = l.toMutableList()
-    copy.add(e)
-    return copy
-}
-
-fun <T>trimList(l: List<T>, e: T): List<T> {
-    val copy = l.toMutableList()
-    copy.remove(e)
-    return copy
-}
-
 // Answer - 2272 @ 25 mins
 fun processPart1() {
     val js = initialJoltages.toMutableList()
     js.sort()
-    val dj = js.last() + 3
 
     fun search(candidates: List<Int>, sofar: List<Int>): List<Int>  {
         // println("search $candidates $sofar")
@@ -41,21 +28,23 @@ fun processPart1() {
             if (cand - sofar.last() > 3) {
                 throw Error("Impossible at $cand $i")
             }
-            return search(trimList(candidates, cand), extendList(sofar, cand))
+            return search(candidates.drop(1), sofar + cand)
         }
 
         throw Error("Out of candidates")
     }
 
+    val dj = js.last() + 3
     js.add(dj)
     val path = search(js, listOf(0))
 
-    val diffs = mutableListOf<Int>()
+    val diffs = hashMapOf<Int, Int>()
     for (i in 0 until path.size - 1) {
-        diffs.add(path[i + 1] - path[i])
+        val diff = path[i + 1] - path[i] 
+        diffs[diff] = 1 + (diffs[diff] ?: 0)
     }
-    val ones = diffs.count { it == 1 }
-    val threes = diffs.count { it == 3 }
+    val ones = diffs[1] ?: 0
+    val threes = diffs[3] ?: 0
        
     println("Part 1 answer: $ones $threes, prod = ${ones * threes}")
 }
@@ -104,28 +93,23 @@ fun processPart2() {
             }
 
             
-            val cand = candidates[0]
+            val cand = candidates.first()
             if (cand - sofar.last() > 3) {
                 return
             }
 
-            search(trimList(candidates, cand), extendList(sofar, cand))
-            search(trimList(candidates, cand), sofar)
+            search(candidates.drop(1), sofar + cand)
+            search(candidates.drop(1), sofar)
 
             return
         }
 
-        search(trimList(input, input[0]), listOf(input[0]))
+        search(input.drop(1), listOf(input.first()))
 
         return sols
     }
 
-    var final = 1L
-    for (g in groups) {
-        val sols = countSolutions(g)
-        println("${sols.size} for $g - $sols")
-        final *= sols.size
-    }
+    val final = groups.map(::countSolutions).map { it.size.toLong() }.reduce { a, b -> a * b }
 
     println("Part 2 answer = $final")
 }
