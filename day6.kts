@@ -38,12 +38,12 @@ fun parseInput(): List<List<String>> {
 fun processPart1() {
     var total = 0
     for (group in data) {
-	var yesSet = mutableSetOf<Char>()
-	for (person in group) {
-	    yesSet.addAll(person.toList())
-	}
-	// println("$group = $yesSet = ${yesSet.size}");
-	total += yesSet.size
+        var yesSet = mutableSetOf<Char>()
+        for (person in group) {
+            yesSet.addAll(person.toList())
+        }
+        // println("$group = $yesSet = ${yesSet.size}");
+        total += yesSet.size
     }
     
     println("Total $total")
@@ -54,17 +54,17 @@ fun processPart2() {
     var total = 0
 
     for (group in data) {
-	var allSet: Set<Char>? = null
-	for (person in group) {
-	    if (allSet === null) {
-		allSet = person.toHashSet()
-		continue
-	    }
+        var allSet: Set<Char>? = null
+        for (person in group) {
+            if (allSet === null) {
+                allSet = person.toHashSet()
+                continue
+            }
 
-	    allSet = allSet intersect person.toHashSet()
-	}
-	// println("$group = $allSet = ${allSet!!.size}");
-	total += allSet!!.size
+            allSet = allSet intersect person.toHashSet()
+        }
+        // println("$group = $allSet = ${allSet!!.size}");
+        total += allSet!!.size
     }
 
     // Or if you want to sound precocious 

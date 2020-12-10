@@ -14,8 +14,8 @@ val REGEX_CACHE = hashMapOf<String, Regex>()
 fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
     var regex = REGEX_CACHE[pattern]
     if (regex === null) {
-	regex = Regex(pattern)
-	REGEX_CACHE[pattern] = regex
+        regex = Regex(pattern)
+        REGEX_CACHE[pattern] = regex
     }
 
     val matchResult = regex.matchEntire(input)
@@ -41,26 +41,26 @@ fun Context.execute(): ExitReason {
     val opCounts = ops.map { 0 }.toMutableList()
 
     while (true) {
-	if (pc >= ops.size) return ExitReason.NORMAL
+        if (pc >= ops.size) return ExitReason.NORMAL
 
-	if (opCounts[pc]++ > 0) return ExitReason.LOOPING
-	
-	val op = ops[pc]
-	when (op.code) {
-	    
-	    OpCode.NOP -> {
-		++pc
-	    }
+        if (opCounts[pc]++ > 0) return ExitReason.LOOPING
+        
+        val op = ops[pc]
+        when (op.code) {
+            
+            OpCode.NOP -> {
+                ++pc
+            }
 
-	    OpCode.ACC -> {
-		acc += op.arg
-		++pc
-	    }
-	    OpCode.JMP -> {
-		pc += op.arg
-	    }
-	    
-	}
+            OpCode.ACC -> {
+                acc += op.arg
+                ++pc
+            }
+            OpCode.JMP -> {
+                pc += op.arg
+            }
+            
+        }
     }
 }
 
@@ -80,21 +80,21 @@ fun processPart2() {
 
     for ((i, op) in ops.withIndex()) {
 
-	val replacement = when (op.code) {
-	    OpCode.NOP -> Op(OpCode.JMP, op.arg)
-	    OpCode.JMP -> Op(OpCode.NOP, op.arg)
-	    else       -> continue
-	}
-	val patchable = ops.toMutableList()
-	patchable[i] = replacement
+        val replacement = when (op.code) {
+            OpCode.NOP -> Op(OpCode.JMP, op.arg)
+            OpCode.JMP -> Op(OpCode.NOP, op.arg)
+            else       -> continue
+        }
+        val patchable = ops.toMutableList()
+        patchable[i] = replacement
 
-	val c = Context(patchable)
-	val exit = c.execute()
+        val c = Context(patchable)
+        val exit = c.execute()
 
-	if (exit == ExitReason.NORMAL) {
-	    println("Part 2 answer: ${c.acc}")
-	    break
-	}
+        if (exit == ExitReason.NORMAL) {
+            println("Part 2 answer: ${c.acc}")
+            break
+        }
     }
 }
 
