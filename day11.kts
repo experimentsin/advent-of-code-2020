@@ -16,22 +16,22 @@ fun <T>parseLinesAsGridAndMap(mapper: (c: Char) -> T): List<List<T>> {
 
 /// Solution
 
-data class Vec(val x: Int, val y: Int)
+data class Vec2(val x: Int, val y: Int)
 
 // In (x, y) format, y increases downwards
-val ADJ = listOf(Vec(-1, -1), Vec(0, -1), Vec(1, -1),
-                 Vec(-1, 0),              Vec(1, 0),
-                 Vec(-1, 1),  Vec(0, 1) , Vec(1, 1))
+val ADJ = listOf(Vec2(-1, -1), Vec2(0, -1), Vec2(1, -1),
+                 Vec2(-1, 0),               Vec2(1, 0),
+                 Vec2(-1, 1),  Vec2(0, 1) , Vec2(1, 1))
 
-fun addVec(v1: Vec, v2: Vec) = Vec(v1.x + v2.x, v1.y + v2.y)
+fun addVec2(v1: Vec2, v2: Vec2) = Vec2(v1.x + v2.x, v1.y + v2.y)
 
-fun iterate(g: Grid, finder: (Grid, Vec) -> List<Cell>, occThreshold: Int): Pair<Grid, Int> {
+fun iterate(g: Grid, finder: (Grid, Vec2) -> List<Cell>, occThreshold: Int): Pair<Grid, Int> {
     val output = copyGrid(g)
     var changes = 0
 
     for (y in g.indices) {
         for (x in g[0].indices) {
-            val adj = finder(g, Vec(x, y))
+            val adj = finder(g, Vec2(x, y))
             // println("Adj $x $y - $adj")
 
             if (g[y][x] == Cell.EMPTY) {
@@ -55,10 +55,10 @@ fun iterate(g: Grid, finder: (Grid, Vec) -> List<Cell>, occThreshold: Int): Pair
     return Pair(output, changes)
 }
 
-fun adjacentSeats(g: Grid, o: Vec): List<Cell> {
+fun adjacentSeats(g: Grid, o: Vec2): List<Cell> {
     return ADJ.mapNotNull(
-        fun (dv: Vec): Cell? {
-            val adjv = addVec(o, dv)
+        fun (dv: Vec2): Cell? {
+            val adjv = addVec2(o, dv)
             if (isGridOob(g, adjv)) return null
 
             val cell = g[adjv.y][adjv.x]
@@ -90,13 +90,13 @@ fun processPart1() {
     println("Part 1 occupied: $occ")
 }
 
-fun visibleSeats(g: Grid, o: Vec): List<Cell> {
+fun visibleSeats(g: Grid, o: Vec2): List<Cell> {
     return ADJ.mapNotNull(
-        fun (dv: Vec): Cell? {
+        fun (dv: Vec2): Cell? {
             var cursor = o 
 
             while (true) {
-                cursor = addVec(cursor, dv)
+                cursor = addVec2(cursor, dv)
                 if (isGridOob(g, cursor)) break
 
                 val cell = g[cursor.y][cursor.x]
@@ -145,10 +145,16 @@ enum class Cell(val display: Char) { FLOOR('.'), EMPTY('L'), OCCUPIED('#') }
 fun parseCell(c: Char) = Cell.values().find { it.display == c } ?: throw Error("Bad grid input $c")
 
 typealias Grid = List<List<Cell>>
+typealias MutableGrid = MutableList<MutableList<Cell>>
 
 fun gridWidth(g: Grid) = g[0].size
 fun gridHeight(g: Grid) = g.size
-fun isGridOob(g: Grid, v: Vec) = if ((v.x < 0 || v.x >= gridWidth(g)) || (v.y < 0 || v.y >= gridHeight(g))) true else false
+fun isGridOob(g: Grid, v: Vec2) = if ((v.x < 0 || v.x >= gridWidth(g)) || (v.y < 0 || v.y >= gridHeight(g))) true else false
+
+fun gridCell(g: Grid, v: Vec2) = g[v.y][v.x]
+fun setGridCell(g: MutableGrid, v: Vec2, value: Cell) {
+    g[v.y][v.x] = value
+}
 
 fun toMutableGrid(g: List<List<Cell>>) = g.map { it.toMutableList() }.toMutableList()
 fun copyGrid(g: Grid): MutableList<MutableList<Cell>> = toMutableGrid(g)
