@@ -25,14 +25,6 @@ fun lcmOf(vararg n: Long): Long {
     return acc; 
 }
 
-fun lcmOf(n: List<Long>): Long {
-    var acc = n[0]
-    for (i in 1 until n.size) {
-        acc = (n[i] * acc) / gcdOf(n[i], acc)
-    }
-    return acc; 
-}
-
 /// Solution
 
 // Answer - 104
@@ -44,7 +36,6 @@ fun processPart1() {
 
     for (bus in buses) {
         if (bus < 0) continue
-        // val cycles = timestamp / bus
         val rem = timestamp % bus
 
         val offset = if (rem == 0) 0 else bus - rem
@@ -58,23 +49,22 @@ fun processPart1() {
         }
     }
 
-    println("Min $minBus @ $minDep, ${(minDep - timestamp) * minBus}")
+    println("Part 1 answer ${(minDep - timestamp) * minBus} from $minBus @ $minDep, ")
 
 }
 
+// Thoughts...
+
 // So another lcm hack, but with the twist that it's not naive perfect alignment you're looking for
 // Straight re-alignment to same departure time would just be lcm of the cycles
-// Solving simultaneous congruences
-// a? * A = b? * B - b = c? * C - c = ...
-// A, B, b, C, c etc are known
-// a?, b? etc are unknown
-// But there are multiple solutions and you want the minimum
-// Actually solving for n
+// Solving simultaneous range congruences
+// If Kotlin could intersect infinite ranges like Dylan and Python can...
 
 // Not actually guaranteed to converge unless all the cycles are coprime
+// It seems all inputs are actually prime numbers
+
 // Solve delta cycles?
 // Pairwise, A vs B, solve for A and B + b cycle lengths
-// It seems all inputs are prime numbers
 
 fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
     println("solveCongruences $a $ai, $b $bi")
@@ -102,10 +92,11 @@ fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
         acursor += ai
         bcursor += bi
 
-        if (meets.size == 2) break
+        // As a sanity check we can compute two meets and compare with lcm
+        if (meets.size == 1) break
     }
 
-    val cycleLength = meets[1] - meets[0]
+    val cycleLength = lcmOf(ai, bi)
     val cycleStart = meets[0]
     
     println("Sol $cycleStart, length $cycleLength")
@@ -114,6 +105,7 @@ fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
 }
 
 
+// This should just use the above solveCongruences()
 fun calculateCycle(ref: Long, bus: Long, offset: Long): Pair<Long, Long> {
     println("calculateCycle $ref $bus $offset")
     var refcursor = 0L
@@ -140,11 +132,12 @@ fun calculateCycle(ref: Long, bus: Long, offset: Long): Pair<Long, Long> {
         refcursor += ref
         buscursor += bus
 
-        if (meets.size == 2) break
+        // As a sanity check we can compute two meets and compare with lcm
+        if (meets.size == 1) break
     }
 
     println("Meets $meets")
-    val cycleLength = meets[1].first - meets[0].first
+    val cycleLength = lcmOf(ref, bus)
     val cycleStart = meets[0].first
     
     println("Start $cycleStart, length $cycleLength")
@@ -154,19 +147,14 @@ fun calculateCycle(ref: Long, bus: Long, offset: Long): Pair<Long, Long> {
 
 // Answer - 842186186521918
 fun processPart2() {
-    val actual = buses.filter { it >= 0 }.map { it.toLong() }.sorted()
-    val lcm = lcmOf(actual)
-    println("$actual -> $lcm")
-
     val pairs = mutableListOf<Pair<Long, Long>>()
     for ((i, bus) in buses.withIndex()) {
         if (bus < 0) continue
 
         pairs.add(Pair(bus.toLong(), i.toLong()))
     }
-    // pairs.sortBy { it.first }
 
-    // Use the first as a reference
+    // Use the first as a reference and calculate congruences relative to it
     val ref = pairs[0]
 
     val congruences = mutableListOf<Pair<Long, Long>>()
@@ -174,8 +162,8 @@ fun processPart2() {
     for (i in 1 until pairs.size) {
         val bus = pairs[i].first
         val offset = pairs[i].second
-        val cong = calculateCycle(ref.first, bus, offset)
-        congruences.add(cong)
+        val congruence = calculateCycle(ref.first, bus, offset)
+        congruences.add(congruence)
     }
 
     println("Congruences $congruences")
@@ -185,7 +173,7 @@ fun processPart2() {
         cumul = solveCongruences(cumul.first, cumul.second, congruences[i].first, congruences[i].second)
     }
     
-    println("Cum $cumul")
+    println("Part two answer ${cumul.first} from $cumul")
 }
 
 val data = parseLines()
