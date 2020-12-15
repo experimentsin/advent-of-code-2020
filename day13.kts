@@ -66,13 +66,22 @@ fun processPart1() {
 // Solve delta cycles?
 // Pairwise, A vs B, solve for A and B + b cycle lengths
 
+// The obvious(ish) insight that I missed first time round is that it's equivalent
+// to offsetting each bus's starting time back by its time delta offset, then
+// solving those parallel ranges/congruences conventionally for intersecting at the same
+// time t
+// So I can lose all the special case code for recasting the problem relative to
+// the reference (t delta 0) bus
+
 fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
     println("solveCongruences $a $ai, $b $bi")
     var acursor = a
     var bcursor = b
 
     val meets = mutableListOf<Long>()
-    
+
+    // I'm sure you can find this first intersection algorithmically rather
+    // than searching for it, I just can't remember how
     while (true) {
         if (acursor < bcursor) {
             val mult = (bcursor - acursor) / ai
@@ -104,74 +113,20 @@ fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
     return Pair(cycleStart, cycleLength)
 }
 
-
-// This should just use the above solveCongruences()
-fun calculateCycle(ref: Long, bus: Long, offset: Long): Pair<Long, Long> {
-    println("calculateCycle $ref $bus $offset")
-    var refcursor = 0L
-    var buscursor = 0L
-
-    val meets = mutableListOf<Pair<Long, Long>>()
-    
-    while (true) {
-        if (buscursor - offset < refcursor) {
-            val mult = (refcursor - (buscursor - offset)) / bus
-            buscursor += (bus * max(mult, 1))
-            continue
-        }
-
-        if (buscursor - offset > refcursor) {
-            val mult = ((buscursor - offset) - refcursor) / ref
-            refcursor += (ref * max(mult, 1))
-            continue
-        }
-
-        // println("Met at $refcursor = $buscursor + $offset")
-        meets.add(Pair(refcursor, buscursor + offset))
-
-        refcursor += ref
-        buscursor += bus
-
-        // As a sanity check we can compute two meets and compare with lcm
-        if (meets.size == 1) break
-    }
-
-    println("Meets $meets")
-    val cycleLength = lcmOf(ref, bus)
-    val cycleStart = meets[0].first
-    
-    println("Start $cycleStart, length $cycleLength")
-
-    return Pair(cycleStart, cycleLength)
-}
-
 // Answer - 842186186521918
 fun processPart2() {
-    val pairs = mutableListOf<Pair<Long, Long>>()
+    val congruences = mutableListOf<Pair<Long, Long>>()
     for ((i, bus) in buses.withIndex()) {
         if (bus < 0) continue
-
-        pairs.add(Pair(bus.toLong(), i.toLong()))
+        congruences.add(Pair(-i.toLong(), bus.toLong()))
     }
 
-    // Use the first as a reference and calculate congruences relative to it
-    val ref = pairs[0]
-
-    val congruences = mutableListOf<Pair<Long, Long>>()
-    
-    for (i in 1 until pairs.size) {
-        val bus = pairs[i].first
-        val offset = pairs[i].second
-        val congruence = calculateCycle(ref.first, bus, offset)
-        congruences.add(congruence)
-    }
-
-    println("Congruences $congruences")
 
     var cumul = congruences[0]
     for (i in 1 until congruences.size) {
         cumul = solveCongruences(cumul.first, cumul.second, congruences[i].first, congruences[i].second)
     }
+
     
     println("Part two answer ${cumul.first} from $cumul")
 }
