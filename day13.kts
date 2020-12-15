@@ -58,7 +58,7 @@ fun processPart1() {
 // So another lcm hack, but with the twist that it's not naive perfect alignment you're looking for
 // Straight re-alignment to same departure time would just be lcm of the cycles
 // Solving simultaneous range congruences
-// If Kotlin could intersect infinite ranges like Dylan and Python can...
+// If Kotlin could intersect infinite ranges like Dylan could...
 
 // Not actually guaranteed to converge unless all the cycles are coprime
 // It seems all inputs are actually prime numbers
@@ -66,7 +66,7 @@ fun processPart1() {
 // Solve delta cycles?
 // Pairwise, A vs B, solve for A and B + b cycle lengths
 
-// The obvious(ish) insight that I missed first time round is that it's equivalent
+// One obvious(ish) insight that I missed first time round is that it's equivalent
 // to offsetting each bus's starting time back by its time delta offset, then
 // solving those parallel ranges/congruences conventionally for intersecting at the same
 // time t
@@ -81,7 +81,8 @@ fun solveCongruences(a: Long, ai: Long, b: Long, bi: Long): Pair<Long, Long> {
     val meets = mutableListOf<Long>()
 
     // I'm sure you can find this first intersection algorithmically rather
-    // than searching for it, I just can't remember how
+    // than searching for it, I just can't remember how. I think I did implement
+    // this once for Dylan range intersection using the CRT.
     while (true) {
         if (acursor < bcursor) {
             val mult = (bcursor - acursor) / ai
