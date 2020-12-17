@@ -79,6 +79,7 @@ fun processPart2() {
     }
     val valid = nearbyTickets - invalid
 
+    
     val candidates = mutableListOf<HashSet<Rule>>()
     for (i in valid.first().indices) {
         val irules = rules.values.toHashSet()
@@ -92,7 +93,7 @@ fun processPart2() {
         }
         candidates.add(irules)
     }
-
+    
     val counts = candidates.map { it.size }
     println("Counts ${counts}")
 
