@@ -151,6 +151,8 @@ fun processPart1() {
 
 data class Vec4(val x: Int, val y: Int, val z: Int, val w: Int)
 
+operator fun Vec4.plus(v: Vec4): Vec4 = Vec4(x + v.x, y + v.y, z + v.z, w + v.w)
+
 fun neighbourVecs4(): List<Vec4> {
     val vecs = mutableListOf<Vec4>()
     for (x in -1..1) {
@@ -171,7 +173,33 @@ fun neighbourVecs4(): List<Vec4> {
 
 val NEIGHBOUR_VECS4 = neighbourVecs4()
 
-typealias Map4 = HashMap<Vec4, Cube>
+fun neighbours4(v: Vec4): List<Vec4> = NEIGHBOUR_VECS4.map { dv -> v + dv }
+
+
+// A defaulting hash map
+
+// You can achieve something similar in Kotlin by delegation as outlined in the commend below
+// but HashMap is an open class so we can derive and override directly
+
+/*
+class Map4X<K, T>(val default: T, val m: HashMap<K, T> = hashMapOf<K, T>()) : MutableMap<K, T> by m {
+    constructor(tocopy: Map4X<K, T>): this(tocopy.default, HashMap<K, T>(tocopy.m)) 
+
+    operator override fun get(key: K) = m.get(key)
+}
+*/
+
+class DefaultingHashMap<K, T> : HashMap<K, T> {
+    val default: T
+
+    constructor(default: T) { this.default = default }
+    constructor(default: T, tocopy: DefaultingHashMap<K, T>) : super(tocopy) { this.default = default }
+    constructor(tocopy: DefaultingHashMap<K, T>): this(tocopy.default, tocopy)
+
+    operator override fun get(key: K) = super.get(key) ?: default
+}
+
+typealias Map4 = DefaultingHashMap<Vec4, Cube>
 
 // Short of full N-dimensional generality, we could have used generics / functions to
 // share the lifecycle rule logic and basic algorithm
@@ -180,16 +208,16 @@ fun runCycle4(m: Map4): Map4 {
     val nextm = Map4(m)
 
     for ((ov, _) in m) {
-        // There's redundant calculation here but it doesn't matter
-        val ovnbVecs = NEIGHBOUR_VECS4.map { dv -> Vec4(ov.x + dv.x, ov.y + dv.y, ov.z + dv.z, ov.w + dv.w) } + ov
+        // There's redundant calculation because of lazy windowing here but
+        // it doesn't matter
+        val ovnbVecs = neighbours4(ov) + ov
 
         for (v in ovnbVecs) {
-            val cube = m[v] ?: Cube.INACTIVE
-            val nbCubes = NEIGHBOUR_VECS4.map { dv -> m[Vec4(v.x + dv.x, v.y + dv.y, v.z + dv.z, v.w + dv.w)] ?: Cube.INACTIVE }
-            val nbActive = nbCubes.filter { it == Cube.ACTIVE }.count()
+            val cube = m[v] 
+            val nbActive = neighbours4(v).count { m[it] === Cube.ACTIVE }
             when (cube) {
                 Cube.ACTIVE -> {
-                    if (nbActive < 2 || nbActive > 3) nextm[v] = Cube.INACTIVE
+                    if (nbActive !in 2..3) nextm[v] = Cube.INACTIVE
                 }
                 Cube.INACTIVE -> {
                     if (nbActive == 3) nextm[v] = Cube.ACTIVE
@@ -205,7 +233,7 @@ fun runCycle4(m: Map4): Map4 {
 fun processPart2() {
     println("NVs ${NEIGHBOUR_VECS4}")
 
-    val map = Map4()
+    val map = Map4(Cube.INACTIVE)
 
     for ((i, row) in data.withIndex()) {
         for ((j, cell) in row.withIndex()) {
