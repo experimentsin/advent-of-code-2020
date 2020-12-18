@@ -55,7 +55,6 @@ class DefaultingHashMap<K, T> : HashMap<K, T> {
 
 val (_x, _y, _z, _w) = listOf(0, 1, 2, 3)
 
-
 // Turns out Kotlin can't do generics over different number types so
 // we have to choose a concrete type
 
@@ -83,6 +82,8 @@ class Vec {
     override fun hashCode(): Int {
         return java.util.Arrays.hashCode(values)
     }
+
+    val dimensions get() = values.size
 
     fun isCompatible(v: Vec) = values.size == v.values.size
 
@@ -157,11 +158,31 @@ fun nonDiagonalNeighbours(dimensions: Int): List<Vec> {
     return result
 }
 
+fun extremes(vl: Collection<Vec>): Pair<Vec, Vec> {
+    val dimensions = vl.first().dimensions
+    
+    val mins = DefaultingHashMap<Int, Long>(default = Long.MAX_VALUE)
+    val maxs = DefaultingHashMap<Int, Long>(default = Long.MIN_VALUE)
+
+    for (v in vl) {
+        for (dimi in 0 until dimensions) {
+            mins[dimi] = min(mins[dimi], v[dimi])
+            maxs[dimi] = max(maxs[dimi], v[dimi])
+        }
+    }
+
+    val mina = LongArray(dimensions) { i -> mins[i] }
+    val maxa = LongArray(dimensions) { i -> maxs[i] }
+
+    return Pair(Vec(*mina), Vec(*maxa))
+}
+
+
 /// Solution
 
 enum class Cube(val display: Char) { ACTIVE('#'), INACTIVE('.') }
 
-fun parseCube(c: Char): Cube = Cube.values().find { it.display == c } ?: throw Error("Bad input char ${c}")
+fun parseCube(c: Char) = Cube.values().find { it.display == c } ?: throw Error("Bad input char ${c}")
 
 // x > and y ^ and z away
 
@@ -169,32 +190,15 @@ fun drawMap3(m: CubeSpace) {
     println("--")
     println("Vals: ${m.entries}")
     println("--")
-    var minx = Long.MAX_VALUE
-    var maxx = Long.MIN_VALUE
 
-    var miny = Long.MAX_VALUE
-    var maxy = Long.MIN_VALUE
+    val (mins, maxs) = extremes(m.keys)
 
-    var minz = Long.MAX_VALUE
-    var maxz = Long.MIN_VALUE
-
-    for ((k, _) in m) {
-        minx = min(minx, k[_x])
-        maxx = max(maxx, k[_x])
-
-        miny = min(miny, k[_y])
-        maxy = max(maxy, k[_y])
-
-        minz = min(minz, k[_z])
-        maxz = max(maxz, k[_z])
-    }
-
-    for (z in minz..maxz) {
+    for (z in mins[_z]..maxs[_z]) {
         println("z=${z}")
-        for (y in maxy downTo miny) {
-            for (x in minx..maxx) {
-                val cell = m[Vec(x, y, z)]
-                print("${cell.display}")
+        for (y in maxs[_y] downTo mins[_y]) {
+            for (x in mins[_x]..maxs[_x]) {
+                val cube = m[Vec(x, y, z)]
+                print("${cube.display}")
             }
             println("")
         }
@@ -234,9 +238,9 @@ fun processPart1() {
     val map = CubeSpace(default = Cube.INACTIVE)
 
     for ((i, row) in data.withIndex()) {
-        for ((j, cell) in row.withIndex()) {
+        for ((j, cube) in row.withIndex()) {
             val v = Vec(j.toLong(), -i.toLong(), 0L)
-            map[v] = cell
+            map[v] = cube
         }
     }
 
@@ -260,9 +264,9 @@ fun processPart2() {
     val map = CubeSpace(default = Cube.INACTIVE)
 
     for ((i, row) in data.withIndex()) {
-        for ((j, cell) in row.withIndex()) {
+        for ((j, cube) in row.withIndex()) {
             val v = Vec(j.toLong(), -i.toLong(), 0L, 0L)
-            map[v] = cell
+            map[v] = cube
         }
     }
 
