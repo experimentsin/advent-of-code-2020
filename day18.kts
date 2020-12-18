@@ -12,80 +12,9 @@ fun parseLines(): List<String> {
     }
 }
 
-fun parseLinesAsGrid(): List<List<Char>> {
-    return parseLines().map({ it.toMutableList() })
-}
-
-fun <T>parseLinesAsGridAndMap(mapper: (c: Char) -> T): List<List<T>> {
-    return parseLines().map({ it.map(mapper).toMutableList() })
-}
-
-fun parseAndJoinLines(sep: String = ""): String {
-    return parseLines().joinToString(sep)
-}
-
-
-fun parseLineGroups(): List<List<String>> {
-    val groups = mutableListOf<List<String>>()
-    var groupLines = mutableListOf<String>()
-
-    fun commitGroup() {
-        if (!groupLines.isEmpty()) {
-            groups.add(groupLines)
-            groupLines = mutableListOf<String>()
-        }
-    }
-
-    while (true) {
-        val line = readLine()
-
-        if (line == null) {
-            commitGroup()
-            return groups
-        }
-
-        val trimmed = line.trim()
-
-        if (trimmed.isEmpty()) {
-            commitGroup()
-            continue
-        }
-
-        groupLines.add(line.trim())
-    }
-}
-
-fun parseAndJoinLineGroups(sep: String = ""): List<String> {
-    return parseLineGroups().map({ it.joinToString(sep) })
-}
-
-val REGEX_CACHE = hashMapOf<String, Regex>()
-fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
-    var regex = REGEX_CACHE[pattern]
-    if (regex === null) {
-	regex = Regex(pattern)
-	REGEX_CACHE[pattern] = regex
-    }
-
-    val matchResult = regex.matchEntire(input)
-    if (matchResult === null) return null
-    return matchResult.destructured
-}
-
-fun gcdOf(a: Long, b: Long): Long {
-    if (b == 0L) return a
-    return gcdOf(b, a % b)
-}
-
-fun lcmOf(vararg n: Long): Long {
-    var acc = n[0]
-    for (i in 1 until n.size) {
-        acc = (n[i] * acc) / gcdOf(n[i], acc)
-    }
-    return acc; 
-}
-
 /// Solution
+
+// I'm only nesting these classes to work around a bug in the kts compiler
 
 sealed class Expr {
     abstract fun eval(): Long
@@ -116,20 +45,11 @@ sealed class Expr {
 
 }
 
-fun leftToRightPrecedence(l: List<Expr>): Expr {
-    if (l.size == 1) return l[0]
+// Kotlin doesn't do mutually recursive peer local functions so we have
+// to nest them here. D'oh!
 
-    val fop = l.indexOfFirst { it is Expr.Op }
-    if (fop >= 0) {
-        return leftToRightPrecedence(l.slice(0..(fop - 2)) + // Should always be empty in L to R
-                                     Expr.Call(l[fop] as Expr.Op, l[fop - 1], l[fop + 1]) + 
-                                     l.slice((fop + 2)..(l.size - 1)))
-    }
-   
-    throw Error("No op in $l")
-}
-
-// Kotlin doesn't do mutually recursive peer local functions
+// Quick and dirty hack parser e.g. lists with no closing brace get
+// auto-closed by EOL
 
 fun parseExpr(line: String, precendence: (List<Expr>) -> Expr): Expr {
     var i = 0
@@ -148,7 +68,9 @@ fun parseExpr(line: String, precendence: (List<Expr>) -> Expr): Expr {
                 ' '  -> return parse()
                 '+'  -> return Expr.Plus()
                 '*'  -> return Expr.Times()
-                else -> return Expr.Num(c.toString().toLong())
+                // All test data seems to use just single digit numbers so
+                in "0123456789" -> return Expr.Num(c.toString().toLong())
+                else -> throw Error("Unexpected $c at $i in $line")
             }
         }
 
@@ -163,6 +85,19 @@ fun parseExpr(line: String, precendence: (List<Expr>) -> Expr): Expr {
     
 
     return parseList()
+}
+
+fun leftToRightPrecedence(l: List<Expr>): Expr {
+    if (l.size == 1) return l.first()
+
+    val fop = l.indexOfFirst { it is Expr.Op }
+    if (fop >= 0) {
+        return leftToRightPrecedence(l.slice(0..(fop - 2)) + // Should always be empty in L to R
+                                     Expr.Call(l[fop] as Expr.Op, l[fop - 1], l[fop + 1]) + 
+                                     l.slice((fop + 2)..(l.size - 1)))
+    }
+   
+    throw Error("No op in $l")
 }
 
 // Answer - 67800526776934
@@ -180,13 +115,13 @@ fun processPart1() {
 fun mulFirstPrecedence(l: List<Expr>): Expr {
     if (l.size == 1) return l[0]
 
-    var fop = -1
+    var fop: Int
 
     fop = l.indexOfFirst { it is Expr.Plus }
     if (fop < 0) fop = l.indexOfFirst { it is Expr.Times }
     
     if (fop >= 0) {
-        return mulFirstPrecedence(l.slice(0..(fop - 2)) + // always empty?
+        return mulFirstPrecedence(l.slice(0..(fop - 2)) + 
                                   Expr.Call(l[fop] as Expr.Op, l[fop - 1], l[fop + 1]) + 
                                   l.slice((fop + 2)..(l.size - 1)))
     }
