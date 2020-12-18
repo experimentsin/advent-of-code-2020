@@ -39,7 +39,17 @@ class DefaultingHashMap<K, T> : HashMap<K, T> {
     operator override fun get(key: K) = super.get(key) ?: default
 }
 
-// How would we define a completely generic vector class?
+// An experiment in writing a generic N-dimensionsal vector class in Kotlin
+
+// Findings...
+//
+// LongArray -> Unboxed Java long[]
+// Array<Long> -> Boxed Java Long[]
+//
+// vararg params arrive as unboxed arrays for types that map to primitives
+//
+// As such, seems you can't have an override on the same method that has both
+// a single vararg and accepts a matching XxxArray in the same position
 
 // Common axis names for convenience
 
@@ -49,11 +59,32 @@ val (_x, _y, _z, _w) = listOf(0, 1, 2, 3)
 // Turns out Kotlin can't do generics over different number types so
 // we have to choose a concrete type
 
-data class Vec(val values: List<Long>) : List<Long> by values {
-    constructor(vararg value: Long): this(value.toList())
-    constructor(vararg value: Int): this(value.toList().map { it.toLong() })
+// We could just typealias LongArray but LongArray doesn't have value
+// equality behaviour, which we want
 
-    fun isCompatible(v: Vec) = this.size == v.size
+class Vec {
+    val values: LongArray
+    
+    constructor(vararg value: Long) {
+        values = value
+    }
+    
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other?.javaClass != javaClass) return false
+
+        other as Vec
+
+        if (!java.util.Arrays.equals(values, other.values)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return java.util.Arrays.hashCode(values)
+    }
+
+    fun isCompatible(v: Vec) = values.size == v.values.size
 
     fun assertCompatible(v: Vec) {
         if (!isCompatible(v)) throw Error("Incompatible Vecs ${this} ${v}")
@@ -61,43 +92,28 @@ data class Vec(val values: List<Long>) : List<Long> by values {
 
     override fun toString() = "V" + values.toString()
 
-    // It's a bit naughty exposing List<Long> as an interface parent
-    // then defining static overrides for + and - but the other List
+    // It's a bit naughty exposing Array<Long> as an interface parent
+    // then defining static overrides for + and - but the other Array
     // ops will be kind of useful
 
     operator fun plus(v: Vec): Vec {
         assertCompatible(v)
-        // return Vec(this.zip(v, { a, b -> a + b }))
-        return Vec(MutableList(this.size) { i -> this[i] + v[i] })
+        return Vec(*LongArray(values.size) { i -> values[i] + v.values[i] })
     }
 
     operator fun minus(v: Vec): Vec {
         assertCompatible(v)
-        return Vec(this.zip(v, { a, b -> a - b }))
+        return Vec(*LongArray(values.size) { i -> values[i] - v.values[i] })
     }
 
 }
 
-// Disambiguation overrides 
-
-operator fun List<Vec>.plus(v: Vec): List<Vec> {
-    val extended = this.toMutableList()
-    extended.add(v)
-    return extended
-}
-
-operator fun List<Vec>.minus(v: Vec): List<Vec> {
-    val removed = this.toMutableList()
-    removed.remove(v)
-    return removed
-}
-
 fun allNeighbours(v: Vec): List<Vec> {
-    return allNeighbours(v.size).map { dv -> v + dv }
+    return allNeighbours(v.values.size).map { dv -> v + dv }
 }
 
 fun nonDiagonalNeighbours(v: Vec): List<Vec> {
-    return nonDiagonalNeighbours(v.size).map { dv -> v + dv }
+    return nonDiagonalNeighbours(v.values.size).map { dv -> v + dv }
 }
 
 val allNeighboursCache = hashMapOf<Int, List<Vec>>()
@@ -112,7 +128,7 @@ fun allNeighbours(dimensions: Int): List<Vec> {
     fun walk(i: Int, sofar: List<Long>) {
         if (i >= dimensions) {
             if (sofar.count { it == 0L } != dimensions) {
-                nbs.add(Vec(sofar))
+                nbs.add(Vec(*sofar.toLongArray()))
             }
             return
         }
@@ -134,7 +150,7 @@ fun nonDiagonalNeighbours(dimensions: Int): List<Vec> {
     val cached = allNonDiagonalNeighboursCache[dimensions]
     if (cached !== null) return cached
 
-    val result = allNeighbours(dimensions).filter { it.count { it != 0L } == 1 }
+    val result = allNeighbours(dimensions).filter { it.values.count { it != 0L } == 1 }
     allNonDiagonalNeighboursCache[dimensions] = result
     
     return result
@@ -222,7 +238,7 @@ fun runCycle3(m: Map3): Map3 {
         for (v in ovnbVecs) {
             val cube = m[v] ?: Cube.INACTIVE
             val nbCubes = NEIGHBOUR_VECS3.map { dv -> m[Vec3(v.x + dv.x, v.y + dv.y, v.z + dv.z)] ?: Cube.INACTIVE }
-            val nbActive = nbCubes.filter { it == Cube.ACTIVE }.count()
+            val nbActive = nbCubes.count { it == Cube.ACTIVE }
             when (cube) {
                 Cube.ACTIVE -> {
                     if (nbActive < 2 || nbActive > 3) nextm[v] = Cube.INACTIVE
@@ -258,18 +274,18 @@ fun processPart1() {
         // drawMap3(nextm)
     }
 
-    val count = nextm.values.filter { it == Cube.ACTIVE }.count()
+    val count = nextm.values.count { it == Cube.ACTIVE }
 
     println("Part 1 answer - ${count} cubes active after 6 iterations")
 }
 
-typealias Map4 = DefaultingHashMap<Vec, Cube>
+typealias CubeSpace = DefaultingHashMap<Vec, Cube>
 
 // Short of full N-dimensional generality, we could have used generics / functions to
 // share the lifecycle rule logic and basic algorithm
 
-fun runCycle4(m: DefaultingHashMap<Vec, Cube>): DefaultingHashMap<Vec, Cube> {
-    val nextm = DefaultingHashMap<Vec, Cube>(m)
+fun runCycle4(m: CubeSpace): CubeSpace {
+    val nextm = CubeSpace(m)
 
     for ((ov, _) in m) {
         // There's redundant calculation because of lazy windowing here but
@@ -295,11 +311,11 @@ fun runCycle4(m: DefaultingHashMap<Vec, Cube>): DefaultingHashMap<Vec, Cube> {
 
 // Answer - 2240
 fun processPart2() {
-    val map = Map4(Cube.INACTIVE)
+    val map = CubeSpace(Cube.INACTIVE)
 
     for ((i, row) in data.withIndex()) {
         for ((j, cell) in row.withIndex()) {
-            val v = Vec(j, -i, 0, 0)
+            val v = Vec(j.toLong(), -i.toLong(), 0L, 0L)
             map[v] = cell
         }
     }
@@ -309,7 +325,7 @@ fun processPart2() {
         nextm = runCycle4(nextm)
     }
 
-    val count = nextm.values.filter { it == Cube.ACTIVE }.count()
+    val count = nextm.values.count { it == Cube.ACTIVE }
 
     println("Part 2 answer - ${count} cubes active after 6 iterations")
 }
