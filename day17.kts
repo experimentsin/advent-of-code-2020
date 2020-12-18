@@ -90,7 +90,7 @@ class Vec {
         if (!isCompatible(v)) throw Error("Incompatible Vecs ${this} ${v}")
     }
 
-    override fun toString() = "V" + values.toString()
+    override fun toString() = "V" + values.joinToString(", ", "[", "]")
 
     // It's a bit naughty exposing Array<Long> as an interface parent
     // then defining static overrides for + and - but the other Array
@@ -106,6 +106,7 @@ class Vec {
         return Vec(*LongArray(values.size) { i -> values[i] - v.values[i] })
     }
 
+    operator fun get(key: Int) = values[key] 
 }
 
 fun allNeighbours(v: Vec): List<Vec> {
@@ -164,63 +165,36 @@ fun parseCube(c: Char): Cube = Cube.values().find { it.display == c } ?: throw E
 
 // x > and y ^ and z away
 
-data class Vec3(val x: Int, val y: Int, val z: Int)
-
-fun neighbourVecs3(): List<Vec3> {
-    val vecs = mutableListOf<Vec3>()
-    for (x in -1..1) {
-        for (y in -1..1) {
-            for (z in -1..1) {
-                if (x == 0 &&  y == 0 && z == 0) continue
-
-                vecs.add(Vec3(x, y, z))
-            }
-        }
-    }
-
-    if (vecs.size != 3*3*3 - 1) throw Error("Bad neighbourVecs")
-
-    return vecs
-}
-
-val NEIGHBOUR_VECS3 = neighbourVecs3()
-
-typealias Map3 = HashMap<Vec3, Cube>
-
-fun drawMap3(m: Map3) {
+fun drawMap3(m: CubeSpace) {
     println("--")
     println("Vals: ${m.entries}")
     println("--")
-    var minx = Int.MAX_VALUE
-    var maxx = Int.MIN_VALUE
+    var minx = Long.MAX_VALUE
+    var maxx = Long.MIN_VALUE
 
-    var miny = Int.MAX_VALUE
-    var maxy = Int.MIN_VALUE
+    var miny = Long.MAX_VALUE
+    var maxy = Long.MIN_VALUE
 
-    var minz = Int.MAX_VALUE
-    var maxz = Int.MIN_VALUE
+    var minz = Long.MAX_VALUE
+    var maxz = Long.MIN_VALUE
 
     for ((k, _) in m) {
-        minx = min(minx, k.x)
-        maxx = max(maxx, k.x)
+        minx = min(minx, k[_x])
+        maxx = max(maxx, k[_x])
 
-        miny = min(miny, k.y)
-        maxy = max(maxy, k.y)
+        miny = min(miny, k[_y])
+        maxy = max(maxy, k[_y])
 
-        minz = min(minz, k.z)
-        maxz = max(maxz, k.z)
+        minz = min(minz, k[_z])
+        maxz = max(maxz, k[_z])
     }
 
     for (z in minz..maxz) {
         println("z=${z}")
         for (y in maxy downTo miny) {
             for (x in minx..maxx) {
-                val cell = m[Vec3(x, y, z)]
-                if (cell !== null) {
-                    print("${cell.display}")
-                } else {
-                    print(".")
-                }
+                val cell = m[Vec(x, y, z)]
+                print("${cell.display}")
             }
             println("")
         }
@@ -228,63 +202,9 @@ fun drawMap3(m: Map3) {
     
 }
 
-fun runCycle3(m: Map3): Map3 {
-    val nextm = Map3(m)
-
-    for ((ov, _) in m) {
-        // There's redundant calculation here but it doesn't matter
-        val ovnbVecs = NEIGHBOUR_VECS3.map { dv -> Vec3(ov.x + dv.x, ov.y + dv.y, ov.z + dv.z) } + ov
-
-        for (v in ovnbVecs) {
-            val cube = m[v] ?: Cube.INACTIVE
-            val nbCubes = NEIGHBOUR_VECS3.map { dv -> m[Vec3(v.x + dv.x, v.y + dv.y, v.z + dv.z)] ?: Cube.INACTIVE }
-            val nbActive = nbCubes.count { it == Cube.ACTIVE }
-            when (cube) {
-                Cube.ACTIVE -> {
-                    if (nbActive < 2 || nbActive > 3) nextm[v] = Cube.INACTIVE
-                }
-                Cube.INACTIVE -> {
-                    if (nbActive == 3) nextm[v] = Cube.ACTIVE
-                }
-            }
-        }
-    }
-
-    return nextm
-}
-
-// Answer - 284
-fun processPart1() {
-    println("NVs ${NEIGHBOUR_VECS3}")
-
-    val map = Map3()
-
-    for ((i, row) in data.withIndex()) {
-        for ((j, cell) in row.withIndex()) {
-            val v = Vec3(j, -i, 0)
-            map[v] = cell
-        }
-    }
-
-    // drawMap3(map)
-
-    var nextm = map
-    for (i in 1..6) {
-        nextm = runCycle3(nextm)
-        // drawMap3(nextm)
-    }
-
-    val count = nextm.values.count { it == Cube.ACTIVE }
-
-    println("Part 1 answer - ${count} cubes active after 6 iterations")
-}
-
 typealias CubeSpace = DefaultingHashMap<Vec, Cube>
 
-// Short of full N-dimensional generality, we could have used generics / functions to
-// share the lifecycle rule logic and basic algorithm
-
-fun runCycle4(m: CubeSpace): CubeSpace {
+fun runCycle(m: CubeSpace): CubeSpace {
     val nextm = CubeSpace(m)
 
     for ((ov, _) in m) {
@@ -309,9 +229,35 @@ fun runCycle4(m: CubeSpace): CubeSpace {
     return nextm
 }
 
+// Answer - 284
+fun processPart1() {
+    val map = CubeSpace(default = Cube.INACTIVE)
+
+    for ((i, row) in data.withIndex()) {
+        for ((j, cell) in row.withIndex()) {
+            val v = Vec(j.toLong(), -i.toLong(), 0L)
+            map[v] = cell
+        }
+    }
+
+    drawMap3(map)
+
+    var nextm = map
+    for (i in 1..6) {
+        nextm = runCycle(nextm)
+    }
+
+    drawMap3(nextm)
+
+    val count = nextm.values.count { it == Cube.ACTIVE }
+
+    println("Part 1 answer - ${count} cubes active after 6 iterations")
+}
+
+
 // Answer - 2240
 fun processPart2() {
-    val map = CubeSpace(Cube.INACTIVE)
+    val map = CubeSpace(default = Cube.INACTIVE)
 
     for ((i, row) in data.withIndex()) {
         for ((j, cell) in row.withIndex()) {
@@ -322,7 +268,7 @@ fun processPart2() {
 
     var nextm = map
     for (i in 1..6) {
-        nextm = runCycle4(nextm)
+        nextm = runCycle(nextm)
     }
 
     val count = nextm.values.count { it == Cube.ACTIVE }
