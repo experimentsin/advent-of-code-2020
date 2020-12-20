@@ -106,7 +106,8 @@ fun flips(t: Tile): List<Tile> {
 }
 
 fun rotateL(t: Tile): Tile {
-    val copy = t.indices.map { t[0].indices.map { '?' } }.toMutableList()
+    // val copy = t.indices.map { t[0].indices.map { '?' } }.toMutableList()
+    val copy = t[0].indices.map { t.indices.map { '?' } }.toMutableList()
 
     for (copyi in copy.indices) {
         copy[copyi] = t.map { it[it.size - copyi - 1] }
@@ -209,11 +210,13 @@ fun test() {
     if (!horizEdgeMatch(tt, flipH(tt))) throw Error("Bad")
 }
 
+var solutionTiles = listOf<Tile>()
+
 // Answer - 23497974998093
 fun processPart1() {
     test()
 
-    println("all ${tileMap.size} dim ${squareDim}")
+    println("tile count = ${tileMap.size}, grid dim = ${squareDim}, tile dim = ${tileDim}")
 
     // println("Map $tileMap")
 
@@ -239,9 +242,92 @@ fun processPart1() {
    for (corner in corners) cornerProd *= corner
 
    println("Prod ${cornerProd}, corners ${corners}")
+
+   solutionTiles = sols[0].second
 }
 
+fun render(tiles: List<Tile>): Tile {
+    val borderlessTileDim = tileDim - 2
+    val targetdim = squareDim * borderlessTileDim
+    val target = (1..targetdim).map { (1..targetdim).map { '?' }.toMutableList() }.toMutableList()
+    
+    for ((i, tile) in tiles.withIndex()) {
+        // Top left corner of target
+        val irow = (i / squareDim) * borderlessTileDim
+        val icol = (i % squareDim) * borderlessTileDim
+        for (tr in 1..(borderlessTileDim)) {
+            for (tc in 1..(borderlessTileDim)) {
+                if (target[irow + tr - 1][icol + tc - 1] != '?') throw Error("Render problem")
+                target[irow + tr - 1][icol + tc - 1] = tile[tr][tc]
+            }
+        }
+    }
+
+    return target
+}
+
+val MONSTER = 
+    listOf(
+        "                  # ".map { it },
+        "#    ##    ##    ###".map { it },
+        " #  #  #  #  #  #   ".map { it }
+    )
+
+fun monsterSearch(t: Tile, monsters: List<Tile>): Set<Pair<Int, Int>> {
+    val allMonsterSet = hashSetOf<Pair<Int, Int>>()
+        
+    for (tr in t.indices) {
+        for (tc in t[0].indices) {
+            for (monster in monsters) {
+                if (tr + monster.size > t.size) continue
+                if (tc + monster[0].size > t[0].size) continue
+                
+                var isMonster = true
+                val oneMonsterSet = hashSetOf<Pair<Int, Int>>()
+                monster@
+                for (mr in monster.indices) {
+                    for (mc in monster[0].indices) {
+                        if (monster[mr][mc] == '#') {
+                            if (t[tr + mr][tc + mc] == '#') {
+                                oneMonsterSet.add(Pair(tr + mr, tc + mc))
+                                continue
+                            } else {
+                                isMonster = false
+                                break@monster
+                            }
+
+                        } 
+                    }
+                }
+                if (isMonster) {
+                    allMonsterSet.addAll(oneMonsterSet)
+                }
+            }
+        }
+    }
+
+    return allMonsterSet
+}
+
+// Answer - 2256
 fun processPart2() {
+    val rtile = render(solutionTiles)
+    drawTile(rtile)
+
+    val mtrans = allTransformations(MONSTER)
+    /*
+    for ((i, mtran) in mtrans.withIndex()) {
+        println("$i:")
+        drawTile(mtran)
+    }
+    */
+
+    val mset = monsterSearch(rtile, mtrans)
+    println("Mset ${mset.size} ${mset}")
+
+    val allHash = rtile.map { it.count { it == '#' } }.sum()
+
+    println("All hash ${allHash}, monster hash ${mset.size}, diff ${allHash - mset.size}")
 }
 
 fun parseGroup(g: List<String>): Pair<Int, List<List<Char>>> {
@@ -257,6 +343,7 @@ val parsedGroups = groups.map(::parseGroup)
 parsedGroups.forEach { (id, data) -> tileMap[id] = data }
 
 val squareDim = sqrt(parsedGroups.size.toDouble()).toInt()
+val tileDim = tileMap.values.toList()[0].size
 
 processPart1()
 processPart2()
