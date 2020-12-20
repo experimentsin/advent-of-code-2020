@@ -2,29 +2,6 @@
 
 import kotlin.math.*
 
-fun parseLines(): List<String> {
-    var lines = mutableListOf<String>()
-
-    while (true) {
-        val line = readLine()
-        if (line == null) return lines
-        lines.add(line.trim())
-    }
-}
-
-fun parseLinesAsGrid(): List<List<Char>> {
-    return parseLines().map({ it.toMutableList() })
-}
-
-fun <T>parseLinesAsGridAndMap(mapper: (c: Char) -> T): List<List<T>> {
-    return parseLines().map({ it.map(mapper).toMutableList() })
-}
-
-fun parseAndJoinLines(sep: String = ""): String {
-    return parseLines().joinToString(sep)
-}
-
-
 fun parseLineGroups(): List<List<String>> {
     val groups = mutableListOf<List<String>>()
     var groupLines = mutableListOf<String>()
@@ -55,10 +32,6 @@ fun parseLineGroups(): List<List<String>> {
     }
 }
 
-fun parseAndJoinLineGroups(sep: String = ""): List<String> {
-    return parseLineGroups().map({ it.joinToString(sep) })
-}
-
 val REGEX_CACHE = hashMapOf<String, Regex>()
 fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
     var regex = REGEX_CACHE[pattern]
@@ -70,19 +43,6 @@ fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructur
     val matchResult = regex.matchEntire(input)
     if (matchResult === null) return null
     return matchResult.destructured
-}
-
-fun gcdOf(a: Long, b: Long): Long {
-    if (b == 0L) return a
-    return gcdOf(b, a % b)
-}
-
-fun lcmOf(vararg n: Long): Long {
-    var acc = n[0]
-    for (i in 1 until n.size) {
-        acc = (n[i] * acc) / gcdOf(n[i], acc)
-    }
-    return acc; 
 }
 
 /// Solution
@@ -106,22 +66,21 @@ fun flips(t: Tile): List<Tile> {
 }
 
 fun rotateL(t: Tile): Tile {
-    // val copy = t.indices.map { t[0].indices.map { '?' } }.toMutableList()
-    val copy = t[0].indices.map { t.indices.map { '?' } }.toMutableList()
+    val rotated = t[0].indices.map { t.indices.map { '?' } }.toMutableList()
 
-    for (copyi in copy.indices) {
-        copy[copyi] = t.map { it[it.size - copyi - 1] }
+    for (rotatedi in rotated.indices) {
+        rotated[rotatedi] = t.map { it[it.size - rotatedi - 1] }
     }
 
-    return copy
+    return rotated
 }
 
 fun rotations(t: Tile): List<Tile> {
     val rots = mutableListOf<Tile>()
 
     var rot = t
-
     rots.add(rot)
+
     for (i in 1..3) {
         rot = rotateL(t)
         rots.add(rot)
@@ -132,7 +91,6 @@ fun rotations(t: Tile): List<Tile> {
 
 fun allTransformations(t: Tile): List<Tile> {
     val all = rotations(t).flatMap { flips(it) }
-
     return all.distinct()
 }
 
@@ -146,8 +104,7 @@ fun horizEdgeMatch(tleft: Tile, tright: Tile): Boolean {
     return tleft.map { it.last() } == tright.map { it.first() }
 }
 
-
-fun solve(): List<Pair<List<Int>, List<Tile>>> {
+fun solveGrid(): List<Pair<List<Int>, List<Tile>>> {
 
     val sols = mutableListOf<Pair<List<Int>, List<Tile>>>()
 
@@ -176,7 +133,6 @@ fun solve(): List<Pair<List<Int>, List<Tile>>> {
     }
 
     fun walk(options: List<Int>, idsofar: List<Int>, tsofar: List<Tile>) {
-        // println("walk $options, $idsofar")
 
         if (options.size == 0) {
             sols.add(Pair(idsofar, tsofar))
@@ -200,53 +156,35 @@ fun solve(): List<Pair<List<Int>, List<Tile>>> {
     return sols
 }
 
-fun test() {
-    val tt = tileMap.values.toList()[0]
-
-    if (vertEdgeMatch(tt, tt)) throw Error("Bad")
-    if (!vertEdgeMatch(tt, flipV(tt))) throw Error("Bad")
-
-    if (horizEdgeMatch(tt, tt)) throw Error("Bad")
-    if (!horizEdgeMatch(tt, flipH(tt))) throw Error("Bad")
-}
-
 var solutionTiles = listOf<Tile>()
 
 // Answer - 23497974998093
 fun processPart1() {
-    test()
+    println("Tile count = ${tileMap.size}, Grid dim = ${squareDim}, Tile dim = ${tileDim}")
 
-    println("tile count = ${tileMap.size}, grid dim = ${squareDim}, tile dim = ${tileDim}")
-
-    // println("Map $tileMap")
-
-    /*
     for ((id, t) in tileMap) {
-        println("Tile $id:")
-        drawTile(t)
-        println()
+        tileSymmetries[id] = allTransformations(t)
     }
-    */
 
-   for ((id, t) in tileMap) {
-       tileSymmetries[id] = allTransformations(t)
-   }
+    // We've redundantly computed every flipped/rotated equivalent solution but it was
+    // quick enough so it doesn't matter; just pick one
+    val sols = solveGrid()
+    val sol = sols[0]
 
-   val sols = solve()
-   // println("Sols ${sols.size} $sols")
+    val ids = sol.first
+    val corners = listOf(
+        ids[0], ids[squareDim - 1],
+        ids[squareDim * squareDim - squareDim], ids[squareDim * squareDim - 1]
+    )
 
-   val ids = sols[0].first
-   val corners = listOf(ids[0], ids[squareDim - 1], ids[squareDim * squareDim - squareDim], ids[squareDim * squareDim - 1])
+    val cornerProd = corners.fold(1L) { acc, v -> acc * v }
 
-   var cornerProd = 1L
-   for (corner in corners) cornerProd *= corner
+    println("Part 1 answer - ${cornerProd}, product of corners ${corners}")
 
-   println("Prod ${cornerProd}, corners ${corners}")
-
-   solutionTiles = sols[0].second
+    solutionTiles = sol.second
 }
 
-fun render(tiles: List<Tile>): Tile {
+fun renderBorderlessGrid(tiles: List<Tile>): Tile {
     val borderlessTileDim = tileDim - 2
     val targetdim = squareDim * borderlessTileDim
     val target = (1..targetdim).map { (1..targetdim).map { '?' }.toMutableList() }.toMutableList()
@@ -255,9 +193,9 @@ fun render(tiles: List<Tile>): Tile {
         // Top left corner of target
         val irow = (i / squareDim) * borderlessTileDim
         val icol = (i % squareDim) * borderlessTileDim
-        for (tr in 1..(borderlessTileDim)) {
-            for (tc in 1..(borderlessTileDim)) {
-                if (target[irow + tr - 1][icol + tc - 1] != '?') throw Error("Render problem")
+        for (tr in 1..borderlessTileDim) {
+            for (tc in 1..borderlessTileDim) {
+                // if (target[irow + tr - 1][icol + tc - 1] != '?') throw Error("Render overlap")
                 target[irow + tr - 1][icol + tc - 1] = tile[tr][tc]
             }
         }
@@ -268,22 +206,24 @@ fun render(tiles: List<Tile>): Tile {
 
 val MONSTER = 
     listOf(
-        "                  # ".map { it },
-        "#    ##    ##    ###".map { it },
-        " #  #  #  #  #  #   ".map { it }
-    )
+        "                  # ",
+        "#    ##    ##    ###",
+        " #  #  #  #  #  #   ",
+    ).map { it.toList() }
 
 fun monsterSearch(t: Tile, monsters: List<Tile>): Set<Pair<Int, Int>> {
     val allMonsterSet = hashSetOf<Pair<Int, Int>>()
         
     for (tr in t.indices) {
         for (tc in t[0].indices) {
+
             for (monster in monsters) {
                 if (tr + monster.size > t.size) continue
                 if (tc + monster[0].size > t[0].size) continue
                 
                 var isMonster = true
                 val oneMonsterSet = hashSetOf<Pair<Int, Int>>()
+
                 monster@
                 for (mr in monster.indices) {
                     for (mc in monster[0].indices) {
@@ -303,6 +243,7 @@ fun monsterSearch(t: Tile, monsters: List<Tile>): Set<Pair<Int, Int>> {
                     allMonsterSet.addAll(oneMonsterSet)
                 }
             }
+
         }
     }
 
@@ -311,23 +252,14 @@ fun monsterSearch(t: Tile, monsters: List<Tile>): Set<Pair<Int, Int>> {
 
 // Answer - 2256
 fun processPart2() {
-    val rtile = render(solutionTiles)
-    drawTile(rtile)
+    val rtile = renderBorderlessGrid(solutionTiles)
+    // drawTile(rtile)
 
     val mtrans = allTransformations(MONSTER)
-    /*
-    for ((i, mtran) in mtrans.withIndex()) {
-        println("$i:")
-        drawTile(mtran)
-    }
-    */
-
     val mset = monsterSearch(rtile, mtrans)
-    println("Mset ${mset.size} ${mset}")
 
     val allHash = rtile.map { it.count { it == '#' } }.sum()
-
-    println("All hash ${allHash}, monster hash ${mset.size}, diff ${allHash - mset.size}")
+    println("Part 2 answer - ${allHash - mset.size} = all hash ${allHash} - monster hash ${mset.size}")
 }
 
 fun parseGroup(g: List<String>): Pair<Int, List<List<Char>>> {
