@@ -12,53 +12,6 @@ fun parseLines(): List<String> {
     }
 }
 
-fun parseLinesAsGrid(): List<List<Char>> {
-    return parseLines().map({ it.toMutableList() })
-}
-
-fun <T>parseLinesAsGridAndMap(mapper: (c: Char) -> T): List<List<T>> {
-    return parseLines().map({ it.map(mapper).toMutableList() })
-}
-
-fun parseAndJoinLines(sep: String = ""): String {
-    return parseLines().joinToString(sep)
-}
-
-
-fun parseLineGroups(): List<List<String>> {
-    val groups = mutableListOf<List<String>>()
-    var groupLines = mutableListOf<String>()
-
-    fun commitGroup() {
-        if (!groupLines.isEmpty()) {
-            groups.add(groupLines)
-            groupLines = mutableListOf<String>()
-        }
-    }
-
-    while (true) {
-        val line = readLine()
-
-        if (line == null) {
-            commitGroup()
-            return groups
-        }
-
-        val trimmed = line.trim()
-
-        if (trimmed.isEmpty()) {
-            commitGroup()
-            continue
-        }
-
-        groupLines.add(line.trim())
-    }
-}
-
-fun parseAndJoinLineGroups(sep: String = ""): List<String> {
-    return parseLineGroups().map({ it.joinToString(sep) })
-}
-
 val REGEX_CACHE = hashMapOf<String, Regex>()
 fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
     var regex = REGEX_CACHE[pattern]
@@ -70,19 +23,6 @@ fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructur
     val matchResult = regex.matchEntire(input)
     if (matchResult === null) return null
     return matchResult.destructured
-}
-
-fun gcdOf(a: Long, b: Long): Long {
-    if (b == 0L) return a
-    return gcdOf(b, a % b)
-}
-
-fun lcmOf(vararg n: Long): Long {
-    var acc = n[0]
-    for (i in 1 until n.size) {
-        acc = (n[i] * acc) / gcdOf(n[i], acc)
-    }
-    return acc; 
 }
 
 /// Solution
@@ -124,6 +64,7 @@ fun perms(il1: List<String>, il2: List<String>): Set<HashMap<String, String>> {
         val tail1 = l1.drop(1)
         
         for (e2 in l2) {
+            if (e2 !in filteredAllMap[head1]!!) continue
             walk(tail1, l2 - e2, assigns + Assign(head1, e2))
         }
     }
@@ -143,18 +84,6 @@ fun perms(food: Food): Set<HashMap<String, String>> {
     return pms
 }
 
-// In all these assignment pairs, it's (all, ing)
-
-fun isContradictory(ass1: Set<Assign>, ass2: Set<Assign>): Boolean {
-    for (a1 in ass1) {
-        for (a2 in ass2) {
-            if (a1.all == a2.all && a1.ing != a2.ing) return true
-        }
-    }
-
-    return false
-}
-
 fun merge(ass1: Map<String, String>, ass2: Map<String, String>): HashMap<String, String>? {
     val merged = HashMap(ass1)
 
@@ -167,8 +96,9 @@ fun merge(ass1: Map<String, String>, ass2: Map<String, String>): HashMap<String,
     return merged
 }
 
-fun solve1(): Set<String> {
+fun solve1(): Pair<Set<String>, List<HashMap<String, String>>> {
     val nonAllCandidates = allIngs.toHashSet()
+    val sols = mutableListOf<HashMap<String, String>>()
 
     fun walk(foods: List<Food>, allassigns: HashMap<String, String>) {
         // println("walk ${foods.size} ${allassigns.size}")
@@ -177,6 +107,7 @@ fun solve1(): Set<String> {
             // Here, we have a non-contradictory set of assignments
             // That means everything on the rhs of an assignments *could* be an allergen
             // So let's remove them from the candidate set
+            sols.add(allassigns)
             nonAllCandidates.removeAll(allassigns.values.toList())
             return
         }
@@ -188,11 +119,6 @@ fun solve1(): Set<String> {
         val assignperms = perms(food)
 
         for (ass in assignperms) {
-            /*
-            if (isContradictory(ass, allassigns)) {
-                continue
-            }
-             */
             val merged = merge(ass, allassigns)
             if (merged == null) continue
             
@@ -202,22 +128,46 @@ fun solve1(): Set<String> {
 
     walk(foods, hashMapOf<String, String>())
 
-    return nonAllCandidates
+    return Pair(nonAllCandidates, sols)
 }
 
-fun processPart1() {
+val filteredAllMap = hashMapOf<String, List<String>>()
+
+fun prefilter() {
+    for (all in allAlls) {
+        var possibles: List<String> = allIngs
+        for (food in foods) {
+            if (all in food.alls) {
+                possibles = (possibles intersect food.ings).toList()
+            }
+        }
+        filteredAllMap[all] = possibles
+    }
+}
+
+// Answer 1 - 2724
+// Answer 2 - xlxknk,cskbmx,cjdmk,bmhn,jrmr,tzxcmr,fmgxh,fxzh
+fun processPart1and2() {
     println("foods ${foods.size}")
     println("ings ${allIngs.size}")
     println("alls ${allAlls}")
 
+    prefilter()
+
     // println("perms ${perms(foods[0].alls, foods[0].ings)}")
 
-    val nonalls = solve1()
+    val (nonalls, sols) = solve1()
     println("nonalls ${nonalls}")
 
     var count = 0
     nonalls.forEach { ing -> count += foods.count { ing in it.ings } }
-    println("Sol $count")
+    println("Part 1 answer - $count is the number of times $nonalls appear")
+
+    // It seems there is actually on one solution for the input data
+    val sol = sols[0]
+    val sortedAlls = sol.keys.toList().sorted()
+    val ans = sortedAlls.map { sol[it] }.joinToString(",")
+    println("Part 2 answer - $ans are the ingredients sorted by allergen for solution $sol")
 }
 
 fun processPart2() {
@@ -237,6 +187,5 @@ val foods = input.map(::parseFood)
 val allIngs = foods.flatMap { it.ings }.distinct()
 val allAlls = foods.flatMap { it.alls }.distinct()
 
-processPart1()
-processPart2()
+processPart1and2()
 
