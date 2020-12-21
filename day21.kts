@@ -48,42 +48,35 @@ fun setToMap(s: Set<Assign>): HashMap<String, String> {
     return m
 }
 
-// Can we find a contradiction
-
-fun perms(il1: List<String>, il2: List<String>): Set<HashMap<String, String>> {
+fun perms(ialls: List<String>, iings: List<String>): Set<HashMap<String, String>> {
     val perms = hashSetOf<HashMap<String, String>>()
 
-    fun walk(l1: List<String>, l2: List<String>, assigns: Set<Assign>) {
-        if (l1.size == 0) {
+    fun walk(alls: List<String>, ings: List<String>, assigns: Set<Assign>) {
+        if (alls.size == 0) {
             // Everything's been assigned
             perms.add(setToMap(assigns))
             return
         }
 
-        val head1 = l1[0]
-        val tail1 = l1.drop(1)
+        val headall = alls[0]
+        val tailalls = alls.drop(1)
         
-        for (e2 in l2) {
-            if (e2 !in filteredAllMap[head1]!!) continue
-            walk(tail1, l2 - e2, assigns + Assign(head1, e2))
+        for (ing in ings) {
+            if (ing !in filteredAllMap[headall]!!) continue
+            walk(tailalls, ings - ing, assigns + Assign(headall, ing))
         }
     }
 
-    walk(il1, il2, hashSetOf<Assign>())
+    walk(ialls, iings, hashSetOf<Assign>())
 
     return perms
 }
 
-val CACHE = HashMap<Int, Set<HashMap<String, String>>>()
 fun perms(food: Food): Set<HashMap<String, String>> {
-    val cached = CACHE[food.id]
-    if (cached !== null) return cached
-
-    val pms = perms(food.alls, food.ings)
-    CACHE[food.id] = pms
-    return pms
+    return perms(food.alls, food.ings)
 }
 
+// We return null is there's a contradiction between the two all->ing assignment maps
 fun merge(ass1: Map<String, String>, ass2: Map<String, String>): HashMap<String, String>? {
     val merged = HashMap(ass1)
 
@@ -100,29 +93,31 @@ fun solve1(): Pair<Set<String>, List<HashMap<String, String>>> {
     val nonAllCandidates = allIngs.toHashSet()
     val sols = mutableListOf<HashMap<String, String>>()
 
-    fun walk(foods: List<Food>, allassigns: HashMap<String, String>) {
-        // println("walk ${foods.size} ${allassigns.size}")
-
+    fun walk(foods: List<Food>, allAssigns: HashMap<String, String>) {
         if (foods.size == 0) {
             // Here, we have a non-contradictory set of assignments
             // That means everything on the rhs of an assignments *could* be an allergen
             // So let's remove them from the candidate set
-            sols.add(allassigns)
-            nonAllCandidates.removeAll(allassigns.values.toList())
+            sols.add(allAssigns)
+
+            // And remember this allergen to ingredient mapping solution
+            nonAllCandidates.removeAll(allAssigns.values.toList())
             return
         }
 
         // Try all possible assignments
         val food = foods[0]
-        val foodtail = foods.drop(1)
-        // val assignperms = perms(food.alls, food.ings)
+        val foodstail = foods.drop(1)
+
+        // We could send allAssigns into the perm generator rather than over-generate
+        // and merge afterwards but it's fast enough as it is
         val assignperms = perms(food)
 
         for (ass in assignperms) {
-            val merged = merge(ass, allassigns)
+            val merged = merge(ass, allAssigns)
             if (merged == null) continue
             
-            walk(foodtail, merged)
+            walk(foodstail, merged)
         }
     }
 
@@ -131,14 +126,14 @@ fun solve1(): Pair<Set<String>, List<HashMap<String, String>>> {
     return Pair(nonAllCandidates, sols)
 }
 
-val filteredAllMap = hashMapOf<String, List<String>>()
+val filteredAllMap = hashMapOf<String, Set<String>>()
 
 fun prefilter() {
     for (all in allAlls) {
-        var possibles: List<String> = allIngs
+        var possibles = allIngs.toSet()
         for (food in foods) {
             if (all in food.alls) {
-                possibles = (possibles intersect food.ings).toList()
+                possibles = possibles intersect food.ings
             }
         }
         filteredAllMap[all] = possibles
@@ -148,29 +143,26 @@ fun prefilter() {
 // Answer 1 - 2724
 // Answer 2 - xlxknk,cskbmx,cjdmk,bmhn,jrmr,tzxcmr,fmgxh,fxzh
 fun processPart1and2() {
-    println("foods ${foods.size}")
-    println("ings ${allIngs.size}")
-    println("alls ${allAlls}")
+    println("Foods: ${foods.size}")
+    println("Ingredients ${allIngs.size}")
+    println("Allergens: ${allAlls}")
 
     prefilter()
 
     // println("perms ${perms(foods[0].alls, foods[0].ings)}")
 
-    val (nonalls, sols) = solve1()
-    println("nonalls ${nonalls}")
+    val (nonAlls, sols) = solve1()
+    println("Non allergens: ${nonAlls}")
 
     var count = 0
-    nonalls.forEach { ing -> count += foods.count { ing in it.ings } }
-    println("Part 1 answer - $count is the number of times $nonalls appear")
+    nonAlls.forEach { ing -> count += foods.count { ing in it.ings } }
+    println("Part 1 answer - $count is the number of times $nonAlls appear")
 
     // It seems there is actually on one solution for the input data
     val sol = sols[0]
     val sortedAlls = sol.keys.toList().sorted()
     val ans = sortedAlls.map { sol[it] }.joinToString(",")
     println("Part 2 answer - $ans are the ingredients sorted by allergen for solution $sol")
-}
-
-fun processPart2() {
 }
 
 data class Food(val ings: List<String>, val alls: List<String>, val id: Int)
