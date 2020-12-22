@@ -62,19 +62,28 @@ fun score(d: Deck): Long {
 fun processPart1() {
     var d1 = player1
     var d2 = player2
+    val wind: Deck
+
     while (true) {
-        if (d1.size == 0 || d2.size == 0) break
+        if (d1.size == 0) {
+            wind = d2
+            break
+        }
+        if (d2.size == 0) {
+            wind = d1
+            break
+        }
+
         val (nd1, nd2) = playRound(d1, d2)
         d1 = nd1
         d2 = nd2
     }
 
-    val wind = if (d1.size == 0) d2 else d1
     println("Deck1 $d1")
     println("Deck2 $d2")
 
     val sc = score(wind)
-    println("Part 1 answer - $sc is the score for for $wind")
+    println("Part 1 answer - $sc is the score for $wind")
 }
 
 typealias GameState = Pair<Deck, Deck>
