@@ -99,7 +99,7 @@ class LL {
     // values and entries are the link(s). Slow for sequential traversal but
     // we hardly do sequential traversal
 
-    data class Links(var next: Cup)
+    data class Links(var next: Cup) // Adding a default initialiser here crashes kotlinc
 
     val map = hashMapOf<Cup, Links>()
     val max: Cup
@@ -108,38 +108,42 @@ class LL {
         this.max = max
 
         var maxlinks = Links(NOCUP)
-        map[max] = maxlinks
+        setLinks(max, maxlinks)
         
-        var last = max
+        var lastc = max
         for (c in cups) {
             val clinks = Links(NOCUP)
-            map[c] = clinks
-            map[last]!!.next = c
+            setLinks(c, clinks)
+            links(lastc).next = c
             
-            last = c
+            lastc = c
         }
 
         // We need to seed this with 1+ max input cups so that we can
         // lazily populate in sequence up from here
         val lazystart = cups.size + 1
-        map[last]!!.next = lazystart
+        links(lastc).next = lazystart
 
         maxlinks.next = cups[0]
     }
 
     // This is where we unwind the laziness if needs be
-    fun ensure(c: Cup): Links {
+    fun links(c: Cup): Links {
         var links = map[c]
 
         if (links == null) {
             links = Links(c + 1)
-            map[c] = links
+            setLinks(c, links)
         }
 
         return links
     }
 
-    fun next(c: Cup) = ensure(c).next
+    fun setLinks(c: Cup, links: Links) {
+        map[c] = links
+    }
+
+    fun next(c: Cup) = links(c).next
 
     // For convenience, the removed three remain internally linked together and
     // in the map, just orphanes in terms of linkage
@@ -152,8 +156,8 @@ class LL {
             cursor = next(cursor)
         }
 
-        map[after]!!.next = cursor
-        ensure(cursor)
+        links(after).next = cursor
+        links(cursor)
         
         return picked
     }
@@ -162,8 +166,8 @@ class LL {
     fun insert(after: Cup, picks: List<Cup>) {
         val afterNext = next(after)
 
-        map[after]!!.next = picks.first()
-        map[picks.last()]!!.next = afterNext
+        links(after).next = picks.first()
+        links(picks.last()).next = afterNext
     }
 
 }
