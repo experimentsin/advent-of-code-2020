@@ -1,7 +1,6 @@
 /// Boilerplate
 
 import kotlin.math.*
-import java.util.*
 
 fun parseLines(): List<String> {
     var lines = mutableListOf<String>()
@@ -13,95 +12,17 @@ fun parseLines(): List<String> {
     }
 }
 
-fun parseLinesAsGrid(): List<List<Char>> {
-    return parseLines().map({ it.toMutableList() })
-}
-
-fun <T>parseLinesAsGridAndMap(mapper: (c: Char) -> T): List<List<T>> {
-    return parseLines().map({ it.map(mapper).toMutableList() })
-}
-
-fun parseAndJoinLines(sep: String = ""): String {
-    return parseLines().joinToString(sep)
-}
-
-
-fun parseLineGroups(): List<List<String>> {
-    val groups = mutableListOf<List<String>>()
-    var groupLines = mutableListOf<String>()
-
-    fun commitGroup() {
-        if (!groupLines.isEmpty()) {
-            groups.add(groupLines)
-            groupLines = mutableListOf<String>()
-        }
-    }
-
-    while (true) {
-        val line = readLine()
-
-        if (line == null) {
-            commitGroup()
-            return groups
-        }
-
-        val trimmed = line.trim()
-
-        if (trimmed.isEmpty()) {
-            commitGroup()
-            continue
-        }
-
-        groupLines.add(line.trim())
-    }
-}
-
-fun parseAndJoinLineGroups(sep: String = ""): List<String> {
-    return parseLineGroups().map({ it.joinToString(sep) })
-}
-
-val REGEX_CACHE = hashMapOf<String, Regex>()
-fun destructureWithRegex(input: String, pattern: String): MatchResult.Destructured? {
-    var regex = REGEX_CACHE[pattern]
-    if (regex === null) {
-	regex = Regex(pattern)
-	REGEX_CACHE[pattern] = regex
-    }
-
-    val matchResult = regex.matchEntire(input)
-    if (matchResult === null) return null
-    return matchResult.destructured
-}
-
-fun gcdOf(a: Long, b: Long): Long {
-    if (b == 0L) return a
-    return gcdOf(b, a % b)
-}
-
-fun lcmOf(vararg n: Long): Long {
-    var acc = n[0]
-    for (i in 1 until n.size) {
-        acc = (n[i] * acc) / gcdOf(n[i], acc)
-    }
-    return acc; 
-}
-
 /// Solution
 
+// All inputs seem to be contiguous 1..N, so size(input) == N, max of all
+
 typealias Cup = Int
+val NOCUP = -1
 
 data class GameState(val cups: List<Cup>, val current: Int)
 
-// All inputs seem to be contguous 1..N, so size(input) == N
-
-fun rotateToStart(cups: List<Cup>, cup: Cup): List<Cup> {
-    val rotated = cups.toMutableList()
-    while (rotated[0] != cup) {
-        val tmp = rotated.removeAt(0)
-        rotated.add(tmp)
-    }
-    return rotated
-}
+// The rotation's cheesy and slow but avoids messing with modular arithmetic
+// when it comes to wrap-around points
 
 fun rotateToEnd(cups: List<Cup>, cup: Cup): List<Cup> {
     val rotated = cups.toMutableList()
@@ -119,18 +40,13 @@ fun move(gs: GameState): GameState {
     val currentEnds = rotateToEnd(cups, current)
     val picks = currentEnds.slice(0..2)
     val remains = currentEnds.slice(3 until currentEnds.size)
-    println("picks $picks remains $remains")
 
-    fun decrLabel(label: Cup): Cup {
-        return if (label == 1) cups.size else label - 1
-    }
+    fun decrLabel(label: Cup) = if (label == 1) cups.size else label - 1
 
-    var destLabel = decrLabel(current)
-    while (destLabel in picks) {
+    var destLabel = current
+    do {
         destLabel = decrLabel(destLabel)
-    }
-
-    println("Dest: $destLabel")
+    } while (destLabel in picks) 
 
     val destEnds = rotateToEnd(remains, destLabel)
     val inserted = picks + destEnds
@@ -141,69 +57,19 @@ fun move(gs: GameState): GameState {
     return GameState(inserted, nextCurrent)
 }
 
-/*
-fun move(gs: GameState): GameState {
-    val cups = gs.cups
-    val current = gs.current
-
-    fun takePicks(l: List<Cup>, current: Cup): Pair<List<Cup>, List<Cup>> {
-        val picked = mutableListOf<Cup>()
-        val remains = mutableListOf<Cup>()
-
-        val pickedStart = l.indexOf(current) + 1
-        val pickedEnd = pickedStart + 2
-
-        for (i in pickedStart..pickedEnd) {
-            picked.add(l[i % l.size])
-        }
-
-        for (i in l.indices) {
-            if (pickedEnd >= l.size && i <= (pickedEnd % l.size)) continue
-            if (i >= pickedStart && i <= pickedEnd) continue
-            remains.add(l[i % l.size])
-        }
-
-        return Pair(picked, remains)
-    }
-    
-    val (picks, remains) = takePicks(cups, current)
-    println("picks $picks remains $remains")
-
-    var destLabel = current - 1
-    while (destLabel in picks) {
-        destLabel -= 1
-    }
-    if (destLabel < 1) destLabel = cups.size
-
-    println("Dest: $destLabel")
-    
-    val destPos = remains.indexOf(destLabel)
-    // println("${destPos} ${remains}")
-    // val moved = remains.slice(0..destPos) + picks + if (destPos + 1 == remains.size - 1) listOf<Int>() else remains.slice((destPos + 1)..(remains.size - 1))
-    val moved = remains.slice(0..destPos) + picks + remains.slice((destPos + 1)..(remains.size - 1))
-
-    val currentPos = moved.indexOf(current)
-    val nextCurrent = moved[(currentPos + 1) % moved.size]
-        
-    return GameState(moved, nextCurrent)
-}
-*/
-
 fun play(input: List<Cup>): List<Cup> {
-    var state = GameState(input, input[0])
+    var state = GameState(input, input.first())
+
     for (i in 1..100) {
-        println("Move $i = $state")
         state = move(state)
-        println("")
     }
+
     return state.cups
 }
 
 fun canonicalise(cups: List<Cup>): List<Cup> {
     val can = mutableListOf<Cup>()
     val one = cups.indexOf(1)
-
-    println("$cups $one")
 
     for (i in one + 1 until one + cups.size) {
         can.add(cups[i % cups.size])
@@ -215,6 +81,7 @@ fun canonicalise(cups: List<Cup>): List<Cup> {
 // Answer = 65432978
 fun processPart1() {
     println("Cups $cups")
+
     val cups = play(cups)
     val can = canonicalise(cups)
     val canString = can.joinToString("")
@@ -222,169 +89,115 @@ fun processPart1() {
     println("Part 1 answer - $canString")
 }
 
+// Lazy, content-addressable, cyclic list
 
-// Thoughts...
+class LL {
 
-// Maybe a lazy datastructure
-// Content addressable also
+    // Rather than have conventional linked list nodes and an external
+    // hashmap for quick access by content value to specific nodes, I went
+    // this way as a mechanism for laziness i.e. hash map keys are content 
+    // values and entries are the link(s). Slow for sequential traversal but
+    // we hardly do sequential traversal
 
-// HashMap of label to prev/next
+    data class Links(var next: Cup)
 
-val LAZYCUP = -1
+    val map = hashMapOf<Cup, Links>()
+    val max: Cup
 
-// Lazy, content-addresable, cyclic list
-
-class LL() {
-    data class Links(var prev: Int = -2, var next: Int = -2)
-
-    val map = hashMapOf<Int, Links>()
-    var max = -1 // TODO: Move addContent() to a consructor
-
-    fun addContent(cups: List<Cup>, max: Cup) {
+    constructor(cups: List<Cup>, max: Cup) {
         this.max = max
 
-        var maxlinks = Links(LAZYCUP)
+        var maxlinks = Links(NOCUP)
         map[max] = maxlinks
         
         var last = max
         for (c in cups) {
-            val clinks = Links(last, LAZYCUP)
+            val clinks = Links(NOCUP)
             map[c] = clinks
             map[last]!!.next = c
             
             last = c
         }
 
+        // We need to seed this with 1+ max input cups so that we can
+        // lazily populate in sequence up from here
         val lazystart = cups.size + 1
         map[last]!!.next = lazystart
 
         maxlinks.next = cups[0]
     }
 
+    // This is where we unwind the laziness if needs be
     fun ensure(c: Cup): Links {
         var links = map[c]
 
         if (links == null) {
-            links = Links(c - 1, c + 1)
+            links = Links(c + 1)
             map[c] = links
         }
 
         return links
     }
 
-    fun next(c: Cup): Cup {
-        return ensure(c).next
-    }
+    fun next(c: Cup) = ensure(c).next
 
-    fun prev(c: Cup): Cup {
-        return ensure(c).prev
-    }
-
-    // The removed three remain interally linked together
-    fun pick3(after: Cup): List<Cup> {
+    // For convenience, the removed three remain internally linked together and
+    // in the map, just orphanes in terms of linkage
+    fun pick(after: Cup, n: Int): List<Cup> {
         val picked = mutableListOf<Cup>()
+
         var cursor = next(after)
-        for (i in 1..3) {
+        for (i in 1..n) {
             picked.add(cursor)
             cursor = next(cursor)
         }
 
         map[after]!!.next = cursor
-
         ensure(cursor)
-        map[cursor]!!.prev = after
         
         return picked
     }
 
-    fun insert3(after: Cup, picks: List<Cup>) {
+    // This relies on the above i.e. they're still internally linked
+    fun insert(after: Cup, picks: List<Cup>) {
         val afterNext = next(after)
 
         map[after]!!.next = picks.first()
-        map[picks.first()]!!.prev = after
-
-        map[afterNext]!!.prev = picks.last()
         map[picks.last()]!!.next = afterNext
-    }
-
-    fun log() {
-        /*
-        println("Logging: keys ${map.keys} vals ${map.values}")
-         */
-        for ((k, v) in map) {
-            println("$k: $v")
-        }
-
-        val vals = mutableListOf<Cup>()
-
-        var start = 1
-        var cursor = start
-        while (true) {
-            if (cursor < 0) break
-            vals.add(cursor)
-
-            val cursorlinks = map[cursor] ?: break
-            cursor = cursorlinks.next
-        }
-
-        start = map[1]!!.prev
-        cursor = start
-        while (true) {
-            if (cursor < 0) break
-            vals.add(0, cursor)
-
-            val cursorlinks = map[cursor] ?: break
-            cursor = cursorlinks.prev
-        }
-
-        println("$vals")
-
     }
 
 }
 
-
-data class GameState2(val cups: LL, val current: Int)
+data class GameState2(val cups: LL, val current: Cup)
 
 fun move2(gs: GameState2): GameState2 {
     val cups = gs.cups
     val current = gs.current
 
-    // Modifies cups
-    val picks = cups.pick3(current)
+    // Mutates cups
+    val picks = cups.pick(current, 3)
 
-    // println("picks $picks")
+    fun decrLabel(label: Cup) = if (label == 1) cups.max else label - 1
 
-    fun decrLabel(label: Cup): Cup {
-        return if (label == 1) cups.max else label - 1
-    }
-    var destLabel = decrLabel(current)
-    while (destLabel in picks) {
+    var destLabel = current
+    do {
         destLabel = decrLabel(destLabel)
-    }
+    } while (destLabel in picks)
 
-    // println("Dest: $destLabel")
+    // Mutates cups
+    cups.insert(destLabel, picks)
 
-    cups.insert3(destLabel, picks)
     val nextCurrent = cups.next(current)
-        
     return GameState2(cups, nextCurrent)
 }
 
-fun play2(input: List<Cup>, max: Int): GameState2 {
-    val ll = LL()
-    ll.addContent(input, max)
-    
-    var state = GameState2(ll, input[0])
+fun play2(input: List<Cup>, max: Cup): GameState2 {
+    var state = GameState2(LL(input, max), input[0])
     for (i in 1..(MIL * 10)) {
-        // println("Move $i = $state")
-        // ll.log()
         state = move2(state)
-        // println("")
     }
     return state
 }
-
 
 val MIL = 1000000
 
@@ -393,14 +206,15 @@ fun processPart2() {
     println("Cups $cups")
 
     val state = play2(cups, MIL)
+
     val r1 = state.cups.next(1)
     val r2 = state.cups.next(r1)
-    println("$r1 $r2 = ${r1.toLong() * r2.toLong()}")
-    
+
+    println("Part 2 answer - ${r1.toLong() * r2.toLong()} = $r1 * $r2")
 }
 
 val data = parseLines()
 val cups = data[0].map { it.toString().toInt() }
 
-// processPart1()
+processPart1()
 processPart2()
