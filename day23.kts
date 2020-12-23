@@ -1,6 +1,7 @@
 /// Boilerplate
 
 import kotlin.math.*
+import java.util.*
 
 fun parseLines(): List<String> {
     var lines = mutableListOf<String>()
@@ -221,11 +222,185 @@ fun processPart1() {
     println("Part 1 answer - $canString")
 }
 
+
+// Thoughts...
+
+// Maybe a lazy datastructure
+// Content addressable also
+
+// HashMap of label to prev/next
+
+val LAZYCUP = -1
+
+// Lazy, content-addresable, cyclic list
+
+class LL() {
+    data class Links(var prev: Int = -2, var next: Int = -2)
+
+    val map = hashMapOf<Int, Links>()
+    var max = -1 // TODO: Move addContent() to a consructor
+
+    fun addContent(cups: List<Cup>, max: Cup) {
+        this.max = max
+
+        var maxlinks = Links(LAZYCUP)
+        map[max] = maxlinks
+        
+        var last = max
+        for (c in cups) {
+            val clinks = Links(last, LAZYCUP)
+            map[c] = clinks
+            map[last]!!.next = c
+            
+            last = c
+        }
+
+        val lazystart = cups.size + 1
+        map[last]!!.next = lazystart
+
+        maxlinks.next = cups[0]
+    }
+
+    fun ensure(c: Cup): Links {
+        var links = map[c]
+
+        if (links == null) {
+            links = Links(c - 1, c + 1)
+            map[c] = links
+        }
+
+        return links
+    }
+
+    fun next(c: Cup): Cup {
+        return ensure(c).next
+    }
+
+    fun prev(c: Cup): Cup {
+        return ensure(c).prev
+    }
+
+    // The removed three remain interally linked together
+    fun pick3(after: Cup): List<Cup> {
+        val picked = mutableListOf<Cup>()
+        var cursor = next(after)
+        for (i in 1..3) {
+            picked.add(cursor)
+            cursor = next(cursor)
+        }
+
+        map[after]!!.next = cursor
+
+        ensure(cursor)
+        map[cursor]!!.prev = after
+        
+        return picked
+    }
+
+    fun insert3(after: Cup, picks: List<Cup>) {
+        val afterNext = next(after)
+
+        map[after]!!.next = picks.first()
+        map[picks.first()]!!.prev = after
+
+        map[afterNext]!!.prev = picks.last()
+        map[picks.last()]!!.next = afterNext
+    }
+
+    fun log() {
+        /*
+        println("Logging: keys ${map.keys} vals ${map.values}")
+         */
+        for ((k, v) in map) {
+            println("$k: $v")
+        }
+
+        val vals = mutableListOf<Cup>()
+
+        var start = 1
+        var cursor = start
+        while (true) {
+            if (cursor < 0) break
+            vals.add(cursor)
+
+            val cursorlinks = map[cursor] ?: break
+            cursor = cursorlinks.next
+        }
+
+        start = map[1]!!.prev
+        cursor = start
+        while (true) {
+            if (cursor < 0) break
+            vals.add(0, cursor)
+
+            val cursorlinks = map[cursor] ?: break
+            cursor = cursorlinks.prev
+        }
+
+        println("$vals")
+
+    }
+
+}
+
+
+data class GameState2(val cups: LL, val current: Int)
+
+fun move2(gs: GameState2): GameState2 {
+    val cups = gs.cups
+    val current = gs.current
+
+    // Modifies cups
+    val picks = cups.pick3(current)
+
+    // println("picks $picks")
+
+    fun decrLabel(label: Cup): Cup {
+        return if (label == 1) cups.max else label - 1
+    }
+    var destLabel = decrLabel(current)
+    while (destLabel in picks) {
+        destLabel = decrLabel(destLabel)
+    }
+
+    // println("Dest: $destLabel")
+
+    cups.insert3(destLabel, picks)
+    val nextCurrent = cups.next(current)
+        
+    return GameState2(cups, nextCurrent)
+}
+
+fun play2(input: List<Cup>, max: Int): GameState2 {
+    val ll = LL()
+    ll.addContent(input, max)
+    
+    var state = GameState2(ll, input[0])
+    for (i in 1..(MIL * 10)) {
+        // println("Move $i = $state")
+        // ll.log()
+        state = move2(state)
+        // println("")
+    }
+    return state
+}
+
+
+val MIL = 1000000
+
+// Answer = 287230227046
 fun processPart2() {
+    println("Cups $cups")
+
+    val state = play2(cups, MIL)
+    val r1 = state.cups.next(1)
+    val r2 = state.cups.next(r1)
+    println("$r1 $r2 = ${r1.toLong() * r2.toLong()}")
+    
 }
 
 val data = parseLines()
 val cups = data[0].map { it.toString().toInt() }
 
-processPart1()
+// processPart1()
 processPart2()
