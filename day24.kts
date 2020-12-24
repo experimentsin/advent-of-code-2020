@@ -84,12 +84,14 @@ fun addDirection(v: Vec2, dir: Direction): Vec2 {
     return Vec2(v.x + delta.x, v.y + delta.y)
 }
 
+typealias TileMap = DefaultingHashMap<Vec2, Colour>
+
+val tileMap = TileMap(Colour.WHITE)
+
 // Answer - 244
 fun processPart1() {
-    println("${dirPaths}")
-
-    val tileMap = DefaultingHashMap<Vec2, Colour>(Colour.WHITE)
-    
+    // println("${dirPaths}")
+ 
     for (path in dirPaths) {
         var cursor = Vec2(0, 0)
 
@@ -97,14 +99,62 @@ fun processPart1() {
             cursor = addDirection(cursor, d)
         }
 
-        tileMap[cursor] = flip(tileMap[cursor])
+        val before = tileMap[cursor]
+        val after = flip(before)
+        tileMap[cursor] = after
+
+        // println("Flipped $cursor $before -> $after")
     }
 
     val black = tileMap.values.toList().count { it == Colour.BLACK }
-    println("Total black: $black")
+    println("Part 1 answer - $black total black")
 }
 
+fun cycle(m: TileMap): TileMap {
+    val nextm = TileMap(m)
+
+    fun adjacentVecs(v: Vec2): List<Vec2> {
+        return Direction.values().map { d -> addDirection(v, d) }
+    }
+    
+    fun adjacentBlack(v: Vec2): Int {
+        return Direction.values().map { d -> m[addDirection(v, d)] }.count { it == Colour.BLACK }
+    }
+
+    for ((vo, _) in m) {
+        for (v in adjacentVecs(vo) + vo) {
+            val c = m[v]
+            val nblack = adjacentBlack(v)
+            when (c) {
+                Colour.BLACK -> {
+                    if (nblack == 0 || nblack > 2) nextm[v] = flip(m[v])
+                }
+                Colour.WHITE -> {
+                    if (nblack == 2) nextm[v] = flip(m[v])
+                }
+            }
+        }
+    }
+
+    return nextm
+}
+
+// Answer - 3665
 fun processPart2() {
+    // We use the tileMap left from part 1
+
+    var m = tileMap
+    var nblack = -1
+    
+    for (i in 1..100) {
+        m = cycle(m)
+
+        nblack = m.values.toList().count { it == Colour.BLACK }
+        println("Day $i: $nblack")
+    }
+
+    println("Part 2 answer - $nblack total black")
+
 }
 
 fun parseDirPath(line: String): List<Direction> {
