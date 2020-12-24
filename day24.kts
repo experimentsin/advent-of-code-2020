@@ -45,12 +45,7 @@ class DefaultingHashMap<K, T> : HashMap<K, T> {
 
 /*
   Hex grid coordinate system?
-
   Every other line is offset slightly
-
-  Origin 0,0 -> NE -> 0,1 -> NW -> 0,2
-                          -> NW -> 1,2
- 
   So Y % 2 behaviour varies slightly
  */
 
@@ -70,10 +65,6 @@ val O_W = Vec2(-1, 0)
 val O_NW = Vec2(0, 1)
 val O_NE = Vec2(1, 1)
 
-enum class Colour { WHITE, BLACK }
-
-fun flip(c: Colour): Colour = if (c == Colour.WHITE) Colour.BLACK else Colour.WHITE
-
 val E_DELTAS = listOf( E_E, E_SE, E_SW, E_W, E_NW, E_NE)
 val O_DELTAS = listOf( O_E, O_SE, O_SW, O_W, O_NW, O_NE)
 enum class Direction {   E,   SE,   SW,   W,   NW,   NE }
@@ -84,47 +75,40 @@ fun addDirection(v: Vec2, dir: Direction): Vec2 {
     return Vec2(v.x + delta.x, v.y + delta.y)
 }
 
+enum class Colour { WHITE, BLACK }
+fun flip(c: Colour): Colour = if (c == Colour.WHITE) Colour.BLACK else Colour.WHITE
+
 typealias TileMap = DefaultingHashMap<Vec2, Colour>
 
 val tileMap = TileMap(Colour.WHITE)
+fun countBlack(m: TileMap) = m.values.toList().count { it == Colour.BLACK }
 
 // Answer - 244
 fun processPart1() {
-    // println("${dirPaths}")
- 
     for (path in dirPaths) {
         var cursor = Vec2(0, 0)
+        for (d in path) cursor = addDirection(cursor, d)
 
-        for (d in path) {
-            cursor = addDirection(cursor, d)
-        }
-
-        val before = tileMap[cursor]
-        val after = flip(before)
-        tileMap[cursor] = after
-
-        // println("Flipped $cursor $before -> $after")
+        tileMap[cursor] = flip(tileMap[cursor])
     }
 
-    val black = tileMap.values.toList().count { it == Colour.BLACK }
-    println("Part 1 answer - $black total black")
+    val nblack = countBlack(tileMap)
+    println("Part 1 answer - $nblack total black")
 }
 
 fun cycle(m: TileMap): TileMap {
     val nextm = TileMap(m)
 
-    fun adjacentVecs(v: Vec2): List<Vec2> {
-        return Direction.values().map { d -> addDirection(v, d) }
-    }
-    
-    fun adjacentBlack(v: Vec2): Int {
-        return Direction.values().map { d -> m[addDirection(v, d)] }.count { it == Colour.BLACK }
-    }
+    fun adjacentVecs(v: Vec2) = Direction.values().map { d -> addDirection(v, d) }
+    fun adjacentBlack(v: Vec2) = adjacentVecs(v).count { m[it] == Colour.BLACK }
 
+    // Blindly "fuzzing" around the existing tiles in the map like this results in
+    // redundant computation but it's fast enough and concise so...
     for ((vo, _) in m) {
         for (v in adjacentVecs(vo) + vo) {
             val c = m[v]
             val nblack = adjacentBlack(v)
+
             when (c) {
                 Colour.BLACK -> {
                     if (nblack == 0 || nblack > 2) nextm[v] = flip(m[v])
@@ -149,13 +133,15 @@ fun processPart2() {
     for (i in 1..100) {
         m = cycle(m)
 
-        nblack = m.values.toList().count { it == Colour.BLACK }
+        nblack = countBlack(m)
         println("Day $i: $nblack")
     }
 
     println("Part 2 answer - $nblack total black")
 
 }
+
+/// Parsing
 
 fun parseDirPath(line: String): List<Direction> {
     val path = mutableListOf<Direction>()
